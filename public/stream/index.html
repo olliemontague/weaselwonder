@@ -139,7 +139,7 @@ let tt = null, ttRetry = 0;
 function ttConnect(){ if (tt) try { tt.onclose = null; tt.close(); } catch(e){} if (!S.ttUser || !S.ttKey){ $('ttSt').textContent = 'needs a username and API key'; $('ttSt').className = 'st err'; return; }
   $('ttSt').textContent = 'connecting…'; $('ttSt').className = 'st';
   tt = new WebSocket(`wss://api.tik.tools?uniqueId=${encodeURIComponent(S.ttUser.replace(/^@/, ''))}&apiKey=${encodeURIComponent(S.ttKey)}`);
-  tt.onopen = () => { ttRetry = 0; $('ttSt').textContent = 'connected to @' + S.ttUser.replace(/^@/, ''); $('ttSt').className = 'st ok'; line(`TikTok connected (@${esc(S.ttUser.replace(/^@/, ''))})`, 'sys'); };
+  tt.onopen = () => { ttRetry = 0; $('ttSt').textContent = 'connected to @' + S.ttUser.replace(/^@/, ''); $('ttSt').className = 'st ok'; if (ttConnect.said !== S.ttUser){ ttConnect.said = S.ttUser; line(`TikTok connected (@${esc(S.ttUser.replace(/^@/, ''))})`, 'sys'); } };
   tt.onmessage = e => { let msg; try { msg = JSON.parse(e.data); } catch(err){ return; } const ev = msg.event || msg.type, d = msg.data || {};
     const u = d.user || {}, name = u.nickname || u.uniqueId || d.user_unique_id || d.uniqueId; const id = u.uniqueId || d.user_unique_id || name;
     if (ev === 'chat') onChat('tt', name, d.comment);
@@ -147,7 +147,7 @@ function ttConnect(){ if (tt) try { tt.onclose = null; tt.close(); } catch(e){} 
     else if (ev === 'streamStatus' || ev === 'control'){ line('TikTok stream status: ' + esc(JSON.stringify(d).slice(0, 80)), 'sys'); }
     else if (msg.error || ev === 'error'){ line('TikTok: ' + esc(msg.error || d.message || 'error'), 'bad'); } };
   tt.onerror = () => { $('ttSt').textContent = 'error (wrong key, or that user is not live)'; $('ttSt').className = 'st err'; };
-  tt.onclose = e => { $('ttSt').textContent = `disconnected (${e.code}${e.reason ? ': ' + e.reason : ''})`; $('ttSt').className = 'st err'; if (S.ttAuto && ttRetry < 5){ ttRetry++; setTimeout(ttConnect, 3000 * ttRetry); } };
+  tt.onclose = e => { $('ttSt').textContent = `disconnected (${e.code}${e.reason ? ': ' + e.reason : ''})`; $('ttSt').className = 'st err'; if (S.ttAuto){ ttRetry++; clearTimeout(ttConnect.t); ttConnect.t = setTimeout(ttConnect, e.code === 4005 ? 60000 : Math.min(30000, 3000 * ttRetry)); if (e.code === 4005) $('ttSt').textContent = 'waiting for @' + S.ttUser.replace(/^@/, '') + ' to go live (checks every minute)'; } };
 }
 // ---------- overlay refresh ----------
 const ROLE = [['Mayor','🦡'],['Sheriff','🦊'],['Treasurer','🐹'],['Secretary','🐸'],['Councillor','🐰']];
