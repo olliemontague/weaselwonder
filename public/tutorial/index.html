@@ -1454,7 +1454,7 @@ function netSnap(){ const mice = MICE.filter(b => b.state !== 'player');
   return '{"t":"snap","s":' + JSON.stringify({h:[r2(W.root.position.x), r2(W.root.position.z), r2(W.face), W.carrying ? 1 : 0, W.dead ? 1 : 0], p:ps,
     m:mice.map(b => [r2(b.root.position.x), r2(b.root.position.z), r2(b.face), b.body ? 1 : 0, b.cur === 'idle' ? 0 : 1]),
     r:rats.filter(r => !r.dead).map(r => [r2(r.root.position.x), r2(r.root.position.z), r2(r.face || r.root.rotation.y), Math.round(r.size * 10) / 10]),
-    b:bodies.filter(c => !c.carried && !c.flying).map(c => [r2(c.root.position.x), r2(c.root.position.z), Math.round(c.size)]),
+    b:bodies.filter(c => !c.carried && !c.flying).map(c => [r2(c.root.position.x), r2(c.root.position.z), Math.round(c.size), c.mouse ? 1 : c.fallen ? 2 : 0]),
     pile:pile.length, wave:FP.wave, hall:Math.ceil(FP.hall || 0), paused:paused ? 1 : 0, vote:STREAM.window ? Math.ceil(STREAM.window.t) : 0, tally:STREAM.window ? ZB.tally() : null}) + '}'; }
 function netWorld(){ return {t:'world', wires:WIRES.map(w => [w.kind, w.sqs.map(q => [q.i, q.j])]), out:L3.on ? 3 : L2.on ? 2 : OUT.deployed ? 1 : 0,
     seats:(STREAM.seats || []).map(b => b.label || ''), opts:FP_OPTS.map((o, i) => ({i:i + 1, k:o.k, n:o.n, icon:o.icon}))}; }
@@ -1482,6 +1482,9 @@ function netConnect(pw){ if (NET.ws) try { NET.ws.onclose = null; NET.ws.close()
 // ---------- VIEWER (?mode=play): a website player's screen. The host's browser runs the game; this page draws its snapshots,
 // sends the thumb or WASD direction, and shows the player's own points, rank, potion progress and squirrel timer ----------
 const VIEWER = {on:new URLSearchParams(location.search).get('mode') === 'play', ws:null, id:null, snap:null, me:null, status:'', rats:[], bodies:[], mice:[], players:new Map(), sendT:0, last:'', wiresKey:'', out:0};
+function vwFallen(){ const m = SkeletonUtils.clone(mGltf.scene); m.visible = true; m.scale.setScalar(MOUSE_SCALE); m.rotation.set(0, 0, Math.PI / 2); m.position.set(0, 0.12, 0);
+  const root = new THREE.Group(); root.add(m); scene.add(root); const mark = new THREE.Group(), mm = new THREE.MeshBasicMaterial({color:0xffffff}), mr = new THREE.MeshBasicMaterial({color:0xd0302a});
+  const bg = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), mm), c1 = new THREE.Mesh(new THREE.PlaneGeometry(0.27, 0.08), mr), c2 = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.27), mr); c1.position.z = c2.position.z = 0.01; mark.add(bg, c1, c2); root.add(mark); return {root, mark}; }
 function vwBody(){ const r = makeRat(); r.root.scale.setScalar(RAT_SCALE); setRatAnim(r, 'idle', 0); r.mixer.setTime(0.2); for (const m of r.mats) m.color.setHex(0x9a9a86); r.root.rotation.set(0, rnd(0, 6), Math.PI/2); return r; }
 function vwPool(arr, n, make){ while (arr.length < n) arr.push(make()); arr.forEach((e, i) => { e.root.visible = i < n; }); }
 const vwLerp = (v, x, z, dt) => { const k = Math.min(1, dt * 12); if (Math.hypot(x - v.x, z - v.z) > 6){ v.x = x; v.z = z; } else { v.x += (x - v.x) * k; v.z += (z - v.z) * k; } };
@@ -1501,8 +1504,11 @@ function vwTick(dt){
   // rats, bodies
   vwPool(VIEWER.rats, S2.r.length, () => { const r = makeRat(); setRatAnim(r, 'walk', 1); return r; });
   S2.r.forEach(([x, z, f, sz], i) => { const r = VIEWER.rats[i]; vwLerp(r.root.position, x, z, dt); r.root.rotation.y = vwAngle(r.root.rotation.y, f, dt); r.root.scale.setScalar(RAT_SCALE * vis(sz)); r.mixer.update(dt); });
-  vwPool(VIEWER.bodies, S2.b.length, vwBody);
-  S2.b.forEach(([x, z, sz], i) => { const c = VIEWER.bodies[i]; c.root.position.set(x, 0, z); c.root.scale.setScalar(RAT_SCALE * vis(sz)); });
+  const ratB = S2.b.filter(q => !q[3]), mouseB = S2.b.filter(q => q[3]);
+  vwPool(VIEWER.bodies, ratB.length, vwBody);
+  ratB.forEach(([x, z, sz], i) => { const c = VIEWER.bodies[i]; c.root.position.set(x, 0, z); c.root.scale.setScalar(RAT_SCALE * vis(sz)); });
+  VIEWER.fallen = VIEWER.fallen || []; vwPool(VIEWER.fallen, mouseB.length, vwFallen);
+  mouseB.forEach(([x, z], i) => { const c = VIEWER.fallen[i]; c.root.position.set(x, 0, z); c.mark.position.y = 1.0 + Math.sin(performance.now() / 330) * 0.08; c.mark.quaternion.copy(camera.quaternion); });
   // helper and citizen mice
   vwPool(VIEWER.mice, S2.m.length, () => { const b = makeMouseBot(new THREE.Vector3(0, 0, 0)); MICE.splice(MICE.indexOf(b), 1); return b; });
   S2.m.forEach(([x, z, f, c, mv], i) => { const b = VIEWER.mice[i]; vwCarry(b, c ? 1 : 0); vwLerp(b.root.position, x, z, dt); b.face = vwAngle(b.face, f, dt); b.root.rotation.y = b.face; botAnim(b, c ? 'carry' : mv ? 'run' : 'idle', c && !mv ? 0 : 1); b.mixer.update(dt); });

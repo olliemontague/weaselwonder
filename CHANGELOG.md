@@ -48,3 +48,10 @@
 - Free play / stream: rats can no longer walk into town. They stop at the fence and gnaw it (town fence = 10,000 hp, 100 sandbags). Sandbags now take damage too.
 - Universal repair: stand still next to anything damaged (sandbags, wire, traps, turrets, the town fence, the outpost) and it mends with a "Repairing…" progress line. No resources. Website players repair too.
 - Pause shows "PAUSED" on players' screens. Weaselwonder settings: Pause, Restart, and End game & log out (players see "Game ended" and go back to the home page; players also go home if weasel is offline for 20 s).
+
+## r14 · 2026-11-17
+- Game log: the stream page uploads a timestamped log every minute and on End game (KV logs/DATE/, kept 14 days): joins, deliveries, deaths, potions, votes, waves, host frame rate; phone errors are sent to it too.
+- Player screens: no more host aim cone, aim line or goal arrow; the corpse pile shows its bodies; "+1 rat for the town" confirmation; anywhere on the pile counts.
+
+## r15 · 2026-11-17
+- Player screens draw dead mice as fallen mice with a medic cross (they showed as giant dead rats).
