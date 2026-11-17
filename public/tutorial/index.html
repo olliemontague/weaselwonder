@@ -1504,7 +1504,7 @@ cvs.addEventListener('touchmove', e=>{
     s.x = dx/max; s.y = dy/max; s.el.firstElementChild.style.transform = `translate(${dx}px,${dy}px)`; } }
   e.preventDefault();
 }, {passive:false});
-const endTouch = e=>{ for (const t of e.changedTouches){ const tp = touchPos[t.identifier]; if (tp && tp.t0 && performance.now() - tp.t0 < 260 && Math.hypot(t.clientX - tp.x0, t.clientY - tp.y0) < 14 && !PINCH.on){ if (!onWorldTap(t.clientX, t.clientY) && t.clientX > innerWidth/2) toggleWeapon(); } delete touchPos[t.identifier]; if (PINCH.on && (t.identifier === PINCH.a || t.identifier === PINCH.b)) PINCH.on = false; } for (const t of e.changedTouches){ for (const s of [sticks.L, sticks.R]){ if (s.id===t.identifier){ s.id=null; s.x=s.y=0; s.el.style.display='none'; } } } };
+const endTouch = e=>{ for (const t of e.changedTouches){ const tp = touchPos[t.identifier]; if (tp && tp.t0 && performance.now() - tp.t0 < 260 && Math.hypot(t.clientX - tp.x0, t.clientY - tp.y0) < 14 && !PINCH.on){ if (!onWorldTap(t.clientX, t.clientY)){ if (t.clientX > innerWidth/2) toggleWeapon(); else if (W.carrying) dropBody(); } }   /* left thumb tap drops what you carry, like Q */ delete touchPos[t.identifier]; if (PINCH.on && (t.identifier === PINCH.a || t.identifier === PINCH.b)) PINCH.on = false; } for (const t of e.changedTouches){ for (const s of [sticks.L, sticks.R]){ if (s.id===t.identifier){ s.id=null; s.x=s.y=0; s.el.style.display='none'; } } } };
 cvs.addEventListener('touchend', endTouch); cvs.addEventListener('touchcancel', endTouch);
 
 // camera-relative directions: camera looks toward -z, so screen up = -z
@@ -3155,7 +3155,7 @@ function update(dt){
     else if (CUT.on) setHint('');
     else if (XB_ITEM.on && Math.hypot(wp.x - XB_ITEM.root.position.x, wp.z - XB_ITEM.root.position.z) < 1.4) setHint('Stand still to pick up the crossbow');
     else if (!drawn()) setHint((W.armed ? (isTouch ? 'Tap right side: crossbow out · ' : 'Space: crossbow out · ') : '') + (isTouch ? (VIEW.follow ? 'Left thumb moves · right thumb left/right turns · ? help' : 'Left thumb to move · ? for help') : (VIEW.follow ? 'WASD move · ← → or right-click turn · ? help · P pause' : 'WASD to move · ? for help · P pause')));
-    else setHint(isTouch ? (VIEW.follow ? 'Left thumb move · right thumb left/right turns · pinch to zoom · ⚙ settings' : 'Left thumb move · right thumb aim · pinch to zoom') + ' · tap right: stow' : 'WASD move · ← → aim · Space: crossbow away · Q drop · wheel zoom · P pause');
+    else setHint(isTouch ? (VIEW.follow ? 'Left thumb move (tap: drop) · right thumb left/right turns · pinch to zoom · ⚙ settings' : 'Left thumb move · right thumb aim · pinch to zoom') + ' · tap right: stow' : 'WASD move · ← → aim · Space: crossbow away · Q drop · wheel zoom · P pause');
     updGuide(wp, time);
   }
   blendWeights(dt);
