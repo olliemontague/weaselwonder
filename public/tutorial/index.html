@@ -1090,7 +1090,7 @@ function loadBelt(){ const b = W.carrying; if (!b) return; W.carrying = null; W.
 // the store feeds the belt by itself, but the belt is only strong enough for ONE rat at a time: the next leaves when the last one lands.
 // A big haul queues up in the store (where rats can raid it), so carrying rats home by hand is still worth it
 function updOutpost(dt, t){
-  updL2(dt, t); updL3(dt, t); updFreePlay(dt);
+  updL2(dt, t); updL3(dt, t); updFreePlay(dt); updStream(dt);
   if (OUT.deployed && OUT.path && OUT.path.length && OUT.store.length && !OUT.riders.length){ const b = OUT.store.shift(); b.riding = {s:0}; OUT.riders.push(b); tut.loaded = (tut.loaded || 0) + 1; layoutStore(); }
   if (OUT.siteRing){ OUT.siteRing.material.opacity = 0.5 + 0.4 * Math.sin(t * 4); }
   if (OUT.pad) OUT.pad.material.opacity = 0.45 + 0.35 * Math.sin(t * 4);
@@ -1252,6 +1252,7 @@ function trayFree(k){ const T2 = TRAYS[KIT_TRAY[k]]; return T2.slots.find(sl => 
 function produce(){
   const votes = {}; for (const o of FP_OPTS) votes[o.k] = 0; if (FP.vote) votes[FP.vote] += 6;
   for (const c of FP.citizens) votes[c] = (votes[c] || 0) + 1;
+  if (STREAM.on) FP.citizens = [...STREAM.cit.values()].filter(c => !c.outcast && c.vote).map(c => c.vote);
   let budget = Math.min(pile.length, 10); const made = {}; const out = [];
   for (let guard = 0; guard < 30; guard++){
     let best = null, bs = -1; for (const o of FP_OPTS){ const v = votes[o.k]; if (!v || optCost(o) > budget) continue; if (o.k === 'box' ? (OUT.box || L3.on && FP.wonSite) : !trayFree(o.k)) continue; const sc = v / ((made[o.k] || 0) + 1); if (sc > bs){ bs = sc; best = o; } }
@@ -1261,7 +1262,7 @@ function produce(){
   const used = (Math.min(pile.length, 10)) - budget; for (let i = 0; i < used; i++){ const b = pile.pop(); if (b) scene.remove(b.root); } setPile(); updMound();
   FP.made += out.length; if (out.length){ const tally = {}; for (const o of out) tally[o.n] = (tally[o.n] || 0) + 1; toast('Town hall made: ' + Object.entries(tally).map(([n, c]) => `${c} ${n.toLowerCase()}`).join(', ')); drawClock('00:00'); }
   else toast(pile.length ? 'Town hall: not enough bodies for what was voted' : 'Town hall: the corpse pile is empty');
-  FP.citizens = FP.citizens.map(() => ['bag', 'bag', 'wire', 'wire', 'trap', 'turret', 'box'][Math.floor(Math.random() * 7)]);
+  if (!STREAM.on) FP.citizens = FP.citizens.map(() => ['bag', 'bag', 'wire', 'wire', 'trap', 'turret', 'box'][Math.floor(Math.random() * 7)]);
 }
 function fpWave(){ FP.wave++; const n = FP.d.base + (FP.wave - 1) * FP.d.grow, hp = Math.round(FP.d.hp + (FP.wave - 1) * FP.d.hpGrow); FP.spawnLeft = n; FP.spawnHp = hp; FP.spawnT = 0;
   toast(`WAVE ${FP.wave}: ${n} angry rats are storming ${OUT.deployed ? 'your outpost' : 'the town'}!`); sfx.squeak(); }
@@ -1291,6 +1292,69 @@ function updFreePlay(dt){
   // the next outpost box shows its site
   if (OUT.box && !OUT.site) showSite(nextSite(), nextSite() === END_ZONE ? ['END ZONE', 'build here to win'] : null);
   if (OUT.deployed && !OUT.hpSet){ OUT.hpSet = true; OUT.hp = d.outHp * (L3.on ? 1.6 : L2.on ? 1.3 : 1); }
+}
+
+// ---------- STREAM MODE (?mode=stream): free play driven by live chat. Viewers type "join" to become citizens (mice with name tags),
+// vote for what the town hall makes in timed windows that pause the game, earn points, and the top five get roles.
+// Miss three votes in a row and a citizen becomes an outcast who wanders north to be eaten. The stream page drives this through window.ZB ----------
+const STREAM = {on:new URLSearchParams(location.search).get('mode') === 'stream', freeze:false, cit:new Map(), order:[], window:null, nextVote:0, log:[],
+  cfg:{voteEvery:240, voteLen:60, cooldown:30, ptsVote:1, ptsComment:1, ptsGiftCoin:2, outcastAfter:3, maxBodies:24},
+  orbit(dt){ STREAM.ang = (STREAM.ang || 0) + dt * 0.12; const c = HALL_AT; camera.position.set(c.x + Math.sin(STREAM.ang) * 16, 14, c.z + Math.cos(STREAM.ang) * 16); camera.lookAt(c.x, 0, c.z - 6); } };
+const ROLES = [['Mayor','Badger',0x6d6a66,'🦡'], ['Sheriff','Fox',0xd8742c,'🦊'], ['Treasurer','Mole',0x4a3a32,'🐹'], ['Secretary','Frog',0x5f9a3a,'🐸'], ['Councillor','Hare',0xb89a72,'🐰']];
+function tagSprite(text, col){ const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g = c.getContext('2d');
+  g.font = '700 30px system-ui'; const w = Math.min(250, g.measureText(text).width + 24); g.fillStyle = 'rgba(20,16,12,0.78)'; g.beginPath(); g.roundRect((256 - w) / 2, 10, w, 44, 14); g.fill();
+  g.fillStyle = col || '#ffe08a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 128, 33, 240);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), depthTest:false, transparent:true})); sp.scale.set(1.9, 0.48, 1); sp.position.y = 1.35; sp.renderOrder = 9; return sp; }
+function citBody(c){   // give a citizen a mouse in town, if there is room
+  if (c.bot || c.outcast || [...STREAM.cit.values()].filter(x => x.bot).length >= STREAM.cfg.maxBodies) return;
+  const k = STREAM.order.indexOf(c.key), at = new THREE.Vector3(PILE.x - 3 + (k % 8) * 0.9, 0, PILE.z + 2.4 + Math.floor(k / 8) * 0.9);
+  const b = makeMouseBot(at); b.home = at.clone(); b.carryK = 1.6; b.cit = c; c.bot = b; c.tag = tagSprite(c.name); b.root.add(c.tag); dressCit(c); }
+function dressCit(c){ const b = c.bot; if (!b) return; if (c.hat){ b.root.remove(c.hat); c.hat = null; }
+  const r = c.role >= 0 ? ROLES[c.role] : null; b.root.scale.setScalar(r ? 1.35 : 1);
+  if (r){ const hat = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.34, 8), toon(r[2])); hat.position.y = 1.0; c.hat = hat; b.root.add(hat); }
+  b.root.remove(c.tag); c.tag = tagSprite((r ? r[3] + ' ' + r[0] + ' ' : '') + c.name, r ? '#ffd27a' : '#f3ead8'); if (r) c.tag.position.y = 1.0; b.root.add(c.tag); }
+function citKey(name, plat){ return (plat || 'x') + ':' + String(name).toLowerCase(); }
+function rankRoles(){ const ranked = [...STREAM.cit.values()].filter(c => !c.outcast).sort((a, b) => b.pts - a.pts || a.joined - b.joined);
+  ranked.forEach((c, i) => { const r = i < 5 && c.pts > 0 ? i : -1; if (r !== c.role){ const was = c.role; c.role = r; dressCit(c); if (r >= 0 && (was < 0 || r < was)) toast(`${ROLES[r][3]} ${c.name} is now ${ROLES[r][0]}!`); } }); }
+const ZB = window.ZB = {
+  STREAM, ROLES,
+  join(name, plat){ name = String(name || '').slice(0, 18); if (!name) return null; const key = citKey(name, plat); let c = STREAM.cit.get(key);
+    if (c && !c.outcast) return c;
+    if (c && c.outcast){ c.outcast = false; c.missed = 0; } else { c = {key, name, plat, pts:0, vote:null, missed:0, role:-1, joined:Date.now(), lastC:0, votes:0}; STREAM.cit.set(key, c); STREAM.order.push(key); }
+    citBody(c); toast(`🐭 ${c.name} joined the town`); return c; },
+  comment(name, plat){ const c = STREAM.cit.get(citKey(name, plat)); if (!c || c.outcast) return; const t = Date.now(); if (t - c.lastC < STREAM.cfg.cooldown * 1000) return; c.lastC = t; c.pts += STREAM.cfg.ptsComment; rankRoles(); },
+  gift(name, plat, coins){ const c = ZB.join(name, plat); if (!c) return; c.pts += Math.max(1, Math.round(coins || 1)) * STREAM.cfg.ptsGiftCoin; rankRoles(); },
+  vote(name, plat, opt){ const w = STREAM.window; if (!w) return false; const c = STREAM.cit.get(citKey(name, plat)); if (!c || c.outcast) return false;
+    const o = typeof opt === 'number' ? FP_OPTS[opt - 1] : FP_OPTS.find(x => x.k === opt || x.n.toLowerCase().startsWith(String(opt).toLowerCase())); if (!o) return false;
+    if (!w.voted.has(c.key)){ c.pts += STREAM.cfg.ptsVote; c.votes++; } w.voted.set(c.key, o.k); c.vote = o.k; rankRoles(); return true; },
+  hostVote(opt){ const o = FP_OPTS[opt - 1]; if (o){ FP.vote = o.k; if (STREAM.window) STREAM.window.host = o.k; } },
+  openVote(){ if (STREAM.window || !FP.on) return; STREAM.window = {t:STREAM.cfg.voteLen, voted:new Map(), host:FP.vote}; STREAM.freeze = true; sfx.pick(); },
+  closeVote(){ const w = STREAM.window; if (!w) return; STREAM.window = null; STREAM.freeze = false; STREAM.nextVote = STREAM.cfg.voteEvery;
+    for (const c of STREAM.cit.values()){ if (c.outcast) continue; if (w.voted.has(c.key)) c.missed = 0; else if (++c.missed >= STREAM.cfg.outcastAfter) makeOutcast(c); }
+    rankRoles(); const t = ZB.tally(); const top = Object.entries(t).sort((a, b) => b[1] - a[1])[0];
+    toast(top && top[1] ? `The town voted: ${FP_OPTS.find(o => o.k === top[0]).n}` : 'Nobody voted: the town hall keeps its plan'); },
+  tally(){ const t = {}; for (const o of FP_OPTS) t[o.k] = 0; for (const c of STREAM.cit.values()) if (!c.outcast && c.vote) t[c.vote]++; return t; },
+  state(){ const lvl = L3.on ? 3 : L2.on ? 2 : OUT.deployed ? 1 : 0;
+    return {on:FP.on, wave:FP.wave, waveIn:Math.max(0, Math.ceil(FP.waveT || 0)), attacking:FP.spawnLeft > 0 || rats.some(r => r.storm), hall:Math.ceil(FP.hall || 0), hallMax:FP.d.hall, pile:pile.length, outpost:lvl, outHp:Math.ceil(Math.max(0, OUT.hp || 0)), won:!!tut.won, lost:!!FP.lost, diff:FP.d.name,
+      vote:STREAM.window ? {left:Math.ceil(STREAM.window.t), n:STREAM.window.voted.size} : null, nextVote:Math.ceil(STREAM.nextVote), tally:ZB.tally(), host:FP.vote,
+      opts:FP_OPTS.map((o, i) => ({i:i + 1, k:o.k, n:o.n, icon:o.icon, cost:optCost(o)})),
+      cit:[...STREAM.cit.values()].map(c => ({name:c.name, plat:c.plat, pts:c.pts, role:c.role, missed:c.missed, outcast:c.outcast, vote:c.vote, body:!!c.bot}))}; },
+  start(diff){ if (diff) SET.diff = diff; startStage(STAGES.findIndex(x => x.free)); helpEl.style.display = 'none'; if (paused) togglePause(true);
+    STREAM.nextVote = STREAM.cfg.voteEvery; for (const c of STREAM.cit.values()){ c.bot = null; c.hat = null; if (!c.outcast) citBody(c); } },
+  setCfg(o){ Object.assign(STREAM.cfg, o); if (o.diff){ SET.diff = o.diff; applyDiff(); } },
+};
+function makeOutcast(c){ c.outcast = true; c.role = -1; c.vote = null; toast(`🚪 ${c.name} missed ${STREAM.cfg.outcastAfter} votes and was cast out!`);
+  const b = c.bot; if (!b) return; if (b.body){ const bd = b.body; b.body = null; b.root.remove(bd.root); bd.carried = false; bd.root.position.copy(b.root.position); scene.add(bd.root); }
+  b.state = 'outcast'; b.lead = null; b.root.scale.setScalar(1); if (c.hat){ b.root.remove(c.hat); c.hat = null; } b.root.remove(c.tag); c.tag = tagSprite('outcast ' + c.name, '#ff9a8a'); b.root.add(c.tag);
+  b.path = [new THREE.Vector3(ROADS[Math.random() < 0.5 ? 0 : 1], 0, TOWN.z0 - 1), new THREE.Vector3(rnd(-12, 12), 0, -30), new THREE.Vector3(rnd(-12, 12), 0, -66)]; }
+function updStream(dt){
+  if (!STREAM.on || !FP.on) return;
+  if (STREAM.window){ return; }
+  STREAM.nextVote -= dt; if (STREAM.nextVote <= 0 && !tut.finished) ZB.openVote();
+  for (const c of STREAM.cit.values()){ const b = c.bot; if (!b || !c.outcast) continue;
+    if (!b.path.length) b.path = [new THREE.Vector3(rnd(-12, 12), 0, rnd(-66, -30))];
+    if (rats.some(r => !r.dead && r.root.position.distanceTo(b.root.position) < 0.9 + 0.3 * vis(r.size))){
+      burst(b.root.position.clone().setY(0.6), 0x9a3a2a, 16, 3, 3); sfx.squeak(); toast(`${c.name} was eaten by the rats`); scene.remove(b.root); MICE.splice(MICE.indexOf(b), 1); c.bot = null; } }
 }
 // ---------- bolts ----------
 const bolts = [];
@@ -3236,7 +3300,7 @@ function update(dt){
 let last = performance.now();
 function frame(now){
   const dt = Math.min(0.05, (now - last)/1000); last = now;
-  if (started && !paused) update(dt); else if (paused) {} else { W.mixer.update(dt); blendWeights(dt); camPos.set(0,13,15); camera.position.copy(camPos); camera.lookAt(0,0,6); }
+  if (started && !paused && !STREAM.freeze) update(dt); else if (STREAM.freeze){ STREAM.orbit(dt); if (STREAM.window){ STREAM.window.t -= dt; if (STREAM.window.t <= 0) ZB.closeVote(); } for (const b of MICE) b.mixer.update(dt); } else if (paused) {} else { W.mixer.update(dt); blendWeights(dt); camPos.set(0,13,15); camera.position.copy(camPos); camera.lookAt(0,0,6); }
   effect.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -3251,7 +3315,10 @@ go.onclick = ()=>{
   document.getElementById('overlay').style.display = 'none'; started = true; last = performance.now();
   startStage(0);
 };
-window.__log=[]; window.__zb = { spawnGrazer, FP, DIFFS, applyDiff, produce, VOTE_AT, HALL_AT, castVote, openBallot, SET, breakBelt, pathNearest, L3, END_ZONE, hopperPos, outputPos, factoryPos, L2, deployL2, queueItem, itemPadPos, DOCK_AT, padSlotPos, lineDone, COILS_:null, addCoil, sign, belt, toon, makeRat, MODELS, BELTS, TOWN, ROADS, GATES, OUT, OUT_SITE, storePos, loadPos, RESP, BELLS, ALERT, setAlert, PILE, XB_HAND, CLUB, handBone, findBone, scene, SQT, POTION, RIG:()=>RIG, MICE, carriers, turrets, TRAYS, startWave, bolts, toggleWeapon, BONES, allTraps, carrySpeed, drawn, startStage, STAGES, step:(n)=>{ for(let i=0;i<n;i++) update(1/60); }, tut, resetGame, togglePause, killRat, camera, W, rats, bodies, pile, T, THREE, layWire, toon, spawnRat, stockPile, GATES, CUT, XB_ITEM, VIEW, SET, BUILD, WIRES, COILS, sqOf, sqPos, start:()=>go.onclick(), keys, mouse};
+if (STREAM.on){ document.body.classList.add('stream'); const st = document.createElement('style'); st.textContent = 'body.stream #tut, body.stream #btns, body.stream .stick, body.stream #help, body.stream #hint{display:none!important} body.stream #overlay h1{font-size:40px}'; document.head.appendChild(st);
+  go.onclick = ()=>{ try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} document.getElementById('overlay').style.display = 'none'; started = true; last = performance.now(); ZB.start(); VIEW.zoom = VIEW.zoomWant = 0.55; };
+  window.parent && window.parent.postMessage({zb:'ready'}, '*'); }
+window.__log=[]; window.__zb = { ZB, STREAM, spawnGrazer, FP, DIFFS, applyDiff, produce, VOTE_AT, HALL_AT, castVote, openBallot, SET, breakBelt, pathNearest, L3, END_ZONE, hopperPos, outputPos, factoryPos, L2, deployL2, queueItem, itemPadPos, DOCK_AT, padSlotPos, lineDone, COILS_:null, addCoil, sign, belt, toon, makeRat, MODELS, BELTS, TOWN, ROADS, GATES, OUT, OUT_SITE, storePos, loadPos, RESP, BELLS, ALERT, setAlert, PILE, XB_HAND, CLUB, handBone, findBone, scene, SQT, POTION, RIG:()=>RIG, MICE, carriers, turrets, TRAYS, startWave, bolts, toggleWeapon, BONES, allTraps, carrySpeed, drawn, startStage, STAGES, step:(n)=>{ for(let i=0;i<n;i++) update(1/60); }, tut, resetGame, togglePause, killRat, camera, W, rats, bodies, pile, T, THREE, layWire, toon, spawnRat, stockPile, GATES, CUT, XB_ITEM, VIEW, SET, BUILD, WIRES, COILS, sqOf, sqPos, start:()=>go.onclick(), keys, mouse};
 </script>
 </body>
 </html>
