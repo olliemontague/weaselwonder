@@ -103,6 +103,9 @@
 <button id="setbtn">⚙ weaselwonder settings (S)</button>
 <div id="settings">
   <h2>Weaselwonder settings</h2>
+  <h3>Game controls</h3>
+  <div><button id="gPause">⏸ Pause / resume (P)</button><button id="gRestart">↺ Restart the town</button><button id="gEnd" style="background:#a8322a;color:#fff">⏹ End game &amp; log out</button></div>
+  <div class="st">End game tells every website player "Game ended" and sends them back to the home page, then logs you out of the stream page.</div>
   <h3>Chat sources</h3>
   <label>Twitch channel <input id="twCh" placeholder="weaselwonder"></label>
   <div><button id="twGo">Connect Twitch</button> <span class="st" id="twSt">not connected</span></div>
@@ -197,7 +200,7 @@ function refresh(){
   $('voteBig').style.display = s.vote ? 'block' : 'none';
   if (s.vote){ const tv = Object.values(s.tally).reduce((a, b) => a + b, 0), lead = Math.max(...Object.values(s.tally)); $('vbT').textContent = s.vote.left; $('vbN').textContent = tv + (tv === 1 ? ' vote' : ' votes');
     $('vbRows').innerHTML = s.opts.map(o => { const v = s.tally[o.k], pc = tv ? Math.round(v / tv * 100) : 0; return `<div class="vr ${v && v === lead ? 'lead' : ''}"><div class="n">${o.i}</div><div class="bx"><i style="width:${pc}%"></i><span>${o.icon} ${o.n}</span><small>${DESC[o.k]}</small></div><em>${tv ? pc + '%' : '·'}</em></div>`; }).join(''); }
-  $('status').innerHTML = `<span>Wave</span><b>${s.attacking ? 'WAVE ' + s.wave + ' ATTACKING' : 'next in ' + fmt(s.waveIn)}</b><span>Town hall</span><b>${s.hall} / ${s.hallMax}</b>
+  $('status').innerHTML = `<span>Wave</span><b>${s.attacking ? 'WAVE ' + s.wave + ' ATTACKING' : 'next in ' + fmt(s.waveIn)}</b><span>Town fence</span><b>${Math.round(s.hall / s.hallMax * 100)}%</b>
     <span>Corpse pile</span><b>${s.pile}</b><span>Outpost</span><b>${s.outpost ? 'level ' + s.outpost + ' · ' + s.outHp + ' hp' : 'none yet'}</b>
     <span>Building</span><b>${s.saving ? (s.opts.find(o => o.k === s.saving) || {}).n + ' in ' + s.cycleIn + 's' : 'nothing voted'}</b><span>Citizens</span><b>${s.cit.filter(c => !c.outcast).length}</b><span>Difficulty</span><b>${s.diff}${s.crowd ? ' +' + s.crowd + ' rats/wave' : ''}</b>`;
   const top = s.cit.filter(c => !c.outcast).sort((a, b) => b.pts - a.pts).slice(0, 5);
@@ -232,6 +235,11 @@ addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if 
 function hostKeys(e){ if (!Z()) return; if (/^[1-5]$/.test(e.key) && Z().STREAM.window){ Z().hostVote(+e.key); } if ((e.key === 'e' || e.key === 'E') && Z().STREAM.window) Z().closeVote(); }
 addEventListener('keydown', hostKeys);
 $('vbEnd').onclick = () => Z() && Z().closeVote();
+$('gPause').onclick = () => { const g = G(); if (g && g.__zb) g.__zb.togglePause(); };
+$('gRestart').onclick = () => { if (!confirm('Restart the town? Citizens and points are kept.')) return; const z = Z(); if (z){ z.start(S.diff); refresh.ended = false; } };
+$('gEnd').onclick = () => { if (!confirm('End the game? Website players are sent back to the home page.')) return; const z = Z(); if (z && z.endGame) z.endGame();
+  try { if (tw){ tw.onclose = null; tw.close(); } if (tt){ tt.onclose = null; tt.close(); } } catch(e){}
+  setTimeout(() => { document.cookie = 'zb_stream=; Path=/; Max-Age=0'; location.href = '/api/stream-logout'; }, 1200); };
 // ---------- start ----------
 let ready = false;
 addEventListener('message', e => { if (e.data && e.data.zb === 'ready'){ ready = true; } });

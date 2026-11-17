@@ -38,3 +38,13 @@
 - "I am Weasel" button removed from the home page.
 - /stream is password protected (STREAM_PASSWORD secret in Cloudflare; 30-day login cookie).
 - Player page: waits on a slowly turning town view with "Waiting for weaselwonder's town" until the stream game sends its first frame.
+
+## r13 · 2026-11-17
+- Player screens: your own mouse moves instantly (predicted locally) and others glide smoothly; phones render lighter (1x pixels, no shadows, no outlines); 12 updates a second.
+- Drag anywhere on the screen to move; tap anywhere (or Q) to let go. Instructions panel at the bottom folds down to a one-line points summary.
+- Vote dialog on player screens with the five options and live percentages; tap to vote (website players count as citizens).
+- Rats hunt every mouse (website players and the town's helper mice) as readily as the squirrel. A caught mouse leaves a body worth 3 rats to a rat, or 2 respawns if carried to the med tent. Mice come back at the med tent, using a respawn.
+- Mice use gates, sandbags, turrets, traps and wire like the squirrel.
+- Free play / stream: rats can no longer walk into town. They stop at the fence and gnaw it (town fence = 10,000 hp, 100 sandbags). Sandbags now take damage too.
+- Universal repair: stand still next to anything damaged (sandbags, wire, traps, turrets, the town fence, the outpost) and it mends with a "Repairing…" progress line. No resources. Website players repair too.
+- Pause shows "PAUSED" on players' screens. Weaselwonder settings: Pause, Restart, and End game & log out (players see "Game ended" and go back to the home page; players also go home if weasel is offline for 20 s).
