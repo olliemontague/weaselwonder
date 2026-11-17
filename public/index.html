@@ -121,8 +121,10 @@
       const r = await fetch('/api/status', {cache:'no-store'}); const s = await r.json();
       const live = !!s.host; document.body.dataset.live = live ? '1' : '0';
       $('liveText').textContent = live ? 'WEASEL IS LIVE' : 'WEASEL IS OFFLINE';
-      const max = s.max || 5, n = (s.players || []).length; $('slots').innerHTML = Array.from({length:max}, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('');
-      $('slotLine').textContent = n >= max ? `Full: ${(s.waiting || []).length} waiting, you'll queue and watch` : `${max - n} of ${max} player slots free`;
+      // slots shown grow with the crowd, so the page never looks empty: 0 = be first, 1-4 = 5 slots, 5-9 = 10 slots, 10+ = headcount
+      const n = (s.players || []).length, w = (s.waiting || []).length, show = n === 0 ? 0 : n < 5 ? 5 : n < 10 ? 10 : 0;
+      $('slots').innerHTML = Array.from({length:show}, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join(''); $('slots').style.display = show ? 'flex' : 'none';
+      $('slotLine').textContent = n === 0 ? 'Be the first to join the live game!' : n < 10 ? `${show - n} out of ${show} player slots free` : `${n + w} people already playing live with weaselwonder`;
     }catch(e){ document.body.dataset.live = '0'; $('liveText').textContent = 'WEASEL IS OFFLINE'; }
   }
   poll(); setInterval(poll, 15000);
