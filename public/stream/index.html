@@ -77,7 +77,7 @@
       <div><i>1 to 5</i>vote when the town hall calls a vote</div>
       <div><i>chat</i>every comment earns a point (30 s cooldown)</div>
       <div><i>gifts</i>bonus points. The top 5 get roles: Mayor, Sheriff…</div>
-      <div><i>miss 3</i>skip 3 votes and you're cast out to the rats</div>
+      <div><i>miss 3</i>title holders who skip 3 votes are cast out to the rats</div>
     </div>
     <div class="card" id="vote"><div class="tag" id="voteHead">Town hall vote</div><div id="voteRows"></div></div>
     <div class="card" id="statusCard"><div id="status"></div></div>
@@ -130,7 +130,8 @@
 <script>
 const $ = id => document.getElementById(id);
 const SKEY = 'zb_stream_settings';
-const S = Object.assign({twCh:'weaselwonder', ttUser:'weaselwonder', ttKey:'', diff:'easy', voteEvery:240, voteLen:60, cooldown:30, ptsVote:1, ptsComment:1, ptsGiftCoin:2, outcastAfter:3, maxBodies:24}, (()=>{ try { return JSON.parse(localStorage.getItem(SKEY) || '{}'); } catch(e){ return {}; } })());
+const S = Object.assign({twCh:'weaselwonder', ttUser:'weaselwonder', ttKey:'', diff:'medium', voteEvery:180, voteLen:45, cooldown:30, ptsVote:1, ptsComment:1, ptsGiftCoin:2, outcastAfter:3, maxBodies:24}, (()=>{ try { return JSON.parse(localStorage.getItem(SKEY) || '{}'); } catch(e){ return {}; } })());
+if ((S.v || 1) < 2){ Object.assign(S, {v:2, diff:'medium', voteEvery:180, voteLen:45}); }   // new stream defaults (Oliver, 17:46)
 const save = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch(e){} };
 // scale the 1920x1080 stage to the window (OBS browser source at 1920x1080 shows it 1:1)
 function fit(){ const k = Math.min(innerWidth / 1920, innerHeight / 1080); $('stage').style.transform = `scale(${k})`; }
@@ -189,7 +190,7 @@ function refresh(){
     $('vbRows').innerHTML = s.opts.map(o => { const v = s.tally[o.k], pc = tv ? Math.round(v / tv * 100) : 0; return `<div class="vr ${v && v === lead ? 'lead' : ''}"><div class="n">${o.i}</div><div class="bx"><i style="width:${pc}%"></i><span>${o.icon} ${o.n}</span><small>${DESC[o.k]}</small></div><em>${tv ? pc + '%' : '·'}</em></div>`; }).join(''); }
   $('status').innerHTML = `<span>Wave</span><b>${s.attacking ? 'WAVE ' + s.wave + ' ATTACKING' : 'next in ' + fmt(s.waveIn)}</b><span>Town hall</span><b>${s.hall} / ${s.hallMax}</b>
     <span>Corpse pile</span><b>${s.pile}</b><span>Outpost</span><b>${s.outpost ? 'level ' + s.outpost + ' · ' + s.outHp + ' hp' : 'none yet'}</b>
-    <span>Building</span><b>${s.saving ? (s.opts.find(o => o.k === s.saving) || {}).n + ' in ' + s.cycleIn + 's' : 'nothing voted'}</b><span>Citizens</span><b>${s.cit.filter(c => !c.outcast).length}</b><span>Difficulty</span><b>${s.diff}</b>`;
+    <span>Building</span><b>${s.saving ? (s.opts.find(o => o.k === s.saving) || {}).n + ' in ' + s.cycleIn + 's' : 'nothing voted'}</b><span>Citizens</span><b>${s.cit.filter(c => !c.outcast).length}</b><span>Difficulty</span><b>${s.diff}${s.crowd ? ' +' + s.crowd + ' rats/wave' : ''}</b>`;
   const top = s.cit.filter(c => !c.outcast).sort((a, b) => b.pts - a.pts).slice(0, 5);
   $('top5List').innerHTML = top.map((c, i) => `<li><span>${c.role >= 0 ? ROLE[c.role][1] : '🐭'}</span><b>${esc(c.name)}<small>${c.role >= 0 ? ROLE[c.role][0] : 'citizen'}</small></b><em>${c.pts}</em></li>`).join('') || '<li><b style="color:#b9ad97">nobody yet</b></li>';
   $('top5').style.display = s.vote ? 'none' : 'block';

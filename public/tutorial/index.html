@@ -1280,8 +1280,9 @@ function streamProduce(){
   toast(made ? `Town hall made ${made} × ${o.n.toLowerCase()} (the vote)` : `Town hall is saving up for ${o.n.toLowerCase()}: ${pile.length}/${cost} bodies`);
   return true;
 }
-function fpWave(){ FP.wave++; const n = FP.d.base + (FP.wave - 1) * FP.d.grow, hp = Math.round(FP.d.hp + (FP.wave - 1) * FP.d.hpGrow); FP.spawnLeft = n; FP.spawnHp = hp; FP.spawnT = 0;
-  toast(`WAVE ${FP.wave}: ${n} angry rats are storming ${OUT.deployed ? 'your outpost' : 'the town'}!`); sfx.squeak(); }
+function activeCitizens(){ if (!STREAM.on) return 0; const t = Date.now(); return [...STREAM.cit.values()].filter(c => !c.outcast && t - (c.lastA || 0) < 300000).length; }
+function fpWave(){ FP.wave++; const crowd = activeCitizens(); const n = FP.d.base + (FP.wave - 1) * FP.d.grow + crowd, hp = Math.round(FP.d.hp + (FP.wave - 1) * FP.d.hpGrow); FP.spawnLeft = n; FP.spawnHp = hp; FP.spawnT = 0;
+  toast(`WAVE ${FP.wave}: ${n} angry rats${crowd ? ` (+${crowd} for the crowd)` : ''} are storming ${OUT.deployed ? 'your outpost' : 'the town'}!`); sfx.squeak(); }
 function updFreePlay(dt){
   if (!FP.on || tut.finished) return; const d = FP.d, wp = W.root.position;
   FP.t += dt; FP.waveT -= dt; FP.cycleT -= dt;
@@ -1314,7 +1315,7 @@ function updFreePlay(dt){
 // vote for what the town hall makes in timed windows that pause the game, earn points, and the top five get roles.
 // Miss three votes in a row and a citizen becomes an outcast who wanders north to be eaten. The stream page drives this through window.ZB ----------
 const STREAM = {on:new URLSearchParams(location.search).get('mode') === 'stream', freeze:false, cit:new Map(), order:[], window:null, nextVote:0, log:[],
-  cfg:{voteEvery:240, voteLen:60, cooldown:30, ptsVote:1, ptsComment:1, ptsGiftCoin:2, outcastAfter:3, maxBodies:24},
+  cfg:{voteEvery:180, voteLen:45, cooldown:30, ptsVote:1, ptsComment:1, ptsGiftCoin:2, outcastAfter:3, maxBodies:24},
   orbit(dt){ STREAM.ang = (STREAM.ang || 0) + dt * 0.12; const c = HALL_AT; camera.position.set(c.x + Math.sin(STREAM.ang) * 16, 14, c.z + Math.cos(STREAM.ang) * 16); camera.lookAt(c.x, 0, c.z - 6); } };
 const ROLES = [['Mayor','Badger',0x6d6a66,'🦡'], ['Sheriff','Fox',0xd8742c,'🦊'], ['Treasurer','Mole',0x4a3a32,'🐹'], ['Secretary','Frog',0x5f9a3a,'🐸'], ['Councillor','Hare',0xb89a72,'🐰']];
 function tagSprite(text, col){ const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g = c.getContext('2d');
@@ -1337,23 +1338,23 @@ function dressCit(c){ const b = c.bot; if (!b) return; if (c.hat){ b.root.remove
   b.root.remove(c.tag); c.tag = tagSprite((r ? r[3] + ' ' + r[0] + ' ' : '') + c.name, r ? '#ffd27a' : '#f3ead8'); if (r) c.tag.position.y = 1.0; b.root.add(c.tag); }
 function citKey(name, plat){ return (plat || 'x') + ':' + String(name).toLowerCase(); }
 function rankRoles(){ const ranked = [...STREAM.cit.values()].filter(c => !c.outcast).sort((a, b) => b.pts - a.pts || a.joined - b.joined);
-  ranked.forEach((c, i) => { const r = i < 5 && c.pts > 0 ? i : -1; if (r !== c.role){ const was = c.role; c.role = r; if (r >= 0 && (was < 0 || r < was)) toast(`${ROLES[r][3]} ${c.name} is now ${ROLES[r][0]}!`); } });
+  ranked.forEach((c, i) => { const r = i < 5 && c.pts > 0 ? i : -1; if (r >= 0) c.everRole = true; if (r !== c.role){ const was = c.role; c.role = r; if (r >= 0 && (was < 0 || r < was)) toast(`${ROLES[r][3]} ${c.name} is now ${ROLES[r][0]}!`); } });
   for (const c of STREAM.cit.values()){ if (c.outcast) continue; if (c.role >= 0 && STREAM.seats && STREAM.seats.length){ if (c.bot) dropCitBot(c); } else if (!c.bot) citBody(c); else dressCit(c); } dressSeats(); }
 const ZB = window.ZB = {
   STREAM, ROLES,
   join(name, plat){ name = String(name || '').slice(0, 18); if (!name) return null; const key = citKey(name, plat); let c = STREAM.cit.get(key);
     if (c && !c.outcast) return c;
-    if (c && c.outcast){ c.outcast = false; c.missed = 0; } else { c = {key, name, plat, pts:0, vote:null, missed:0, role:-1, joined:Date.now(), lastC:0, votes:0}; STREAM.cit.set(key, c); STREAM.order.push(key); }
+    if (c && c.outcast){ c.outcast = false; c.missed = 0; } else { c = {key, name, plat, pts:0, vote:null, missed:0, role:-1, joined:Date.now(), lastC:0, lastA:Date.now(), votes:0, everRole:false}; STREAM.cit.set(key, c); STREAM.order.push(key); }
     citBody(c); toast(`🐭 ${c.name} joined the town`); return c; },
-  comment(name, plat){ const c = STREAM.cit.get(citKey(name, plat)); if (!c || c.outcast) return; const t = Date.now(); if (t - c.lastC < STREAM.cfg.cooldown * 1000) return; c.lastC = t; c.pts += STREAM.cfg.ptsComment; rankRoles(); },
-  gift(name, plat, coins){ const c = ZB.join(name, plat); if (!c) return; c.pts += Math.max(1, Math.round(coins || 1)) * STREAM.cfg.ptsGiftCoin; rankRoles(); },
+  comment(name, plat){ const c = STREAM.cit.get(citKey(name, plat)); if (!c || c.outcast) return; const t = Date.now(); if (t - c.lastC < STREAM.cfg.cooldown * 1000) return; c.lastC = t; c.lastA = t; c.pts += STREAM.cfg.ptsComment; rankRoles(); },
+  gift(name, plat, coins){ const c = ZB.join(name, plat); if (!c) return; c.lastA = Date.now(); c.pts += Math.max(1, Math.round(coins || 1)) * STREAM.cfg.ptsGiftCoin; rankRoles(); },
   vote(name, plat, opt){ const w = STREAM.window; const c = STREAM.cit.get(citKey(name, plat)); if (!c || c.outcast) return false;
     const o = typeof opt === 'number' ? FP_OPTS[opt - 1] : FP_OPTS.find(x => x.k === opt || x.n.toLowerCase().startsWith(String(opt).toLowerCase())); if (!o) return false;
-    c.vote = o.k; if (w){ if (!w.voted.has(c.key)){ c.pts += STREAM.cfg.ptsVote; c.votes++; } w.voted.set(c.key, o.k); } rankRoles(); return true; },   /* a vote between windows still sets their choice; points and attendance only count inside a window */
+    c.vote = o.k; c.lastA = Date.now(); if (w){ if (!w.voted.has(c.key)){ c.pts += STREAM.cfg.ptsVote; c.votes++; } w.voted.set(c.key, o.k); } rankRoles(); return true; },   /* a vote between windows still sets their choice; points and attendance only count inside a window */
   hostVote(opt){ const o = FP_OPTS[opt - 1]; if (o){ FP.vote = o.k; if (STREAM.window) STREAM.window.host = o.k; } },
   openVote(){ if (STREAM.window || !FP.on) return; STREAM.window = {t:STREAM.cfg.voteLen, voted:new Map(), host:FP.vote}; STREAM.freeze = true; sfx.pick(); },
   closeVote(){ const w = STREAM.window; if (!w) return; STREAM.window = null; STREAM.freeze = false; STREAM.nextVote = STREAM.cfg.voteEvery;
-    for (const c of STREAM.cit.values()){ if (c.outcast) continue; if (w.voted.has(c.key)) c.missed = 0; else if (++c.missed >= STREAM.cfg.outcastAfter) makeOutcast(c); }
+    for (const c of STREAM.cit.values()){ if (c.outcast) continue; if (w.voted.has(c.key) || !c.everRole) c.missed = 0; else if (++c.missed >= STREAM.cfg.outcastAfter) makeOutcast(c); }   /* only citizens who have held a top-5 title can be cast out */
     rankRoles(); const t = ZB.tally(); const top = Object.entries(t).sort((a, b) => b[1] - a[1])[0];
     toast(top && top[1] ? `The town voted: ${FP_OPTS.find(o => o.k === top[0]).n}` : 'Nobody voted: the town hall keeps its plan'); },
   tally(){ const t = {}; for (const o of FP_OPTS) t[o.k] = 0; for (const c of STREAM.cit.values()) if (!c.outcast && c.vote) t[c.vote]++; return t; },
@@ -1361,7 +1362,7 @@ const ZB = window.ZB = {
     return {on:FP.on, wave:FP.wave, waveIn:Math.max(0, Math.ceil(FP.waveT || 0)), attacking:FP.spawnLeft > 0 || rats.some(r => r.storm), hall:Math.ceil(FP.hall || 0), hallMax:FP.d.hall, pile:pile.length, outpost:lvl, outHp:Math.ceil(Math.max(0, OUT.hp || 0)), won:!!tut.won, lost:!!FP.lost, diff:FP.d.name,
       vote:STREAM.window ? {left:Math.ceil(STREAM.window.t), n:STREAM.window.voted.size} : null, saving:STREAM.saving, cycleIn:Math.ceil(FP.cycleT || 0), nextVote:Math.ceil(STREAM.nextVote), tally:ZB.tally(), host:FP.vote,
       opts:FP_OPTS.map((o, i) => ({i:i + 1, k:o.k, n:o.n, icon:o.icon, cost:optCost(o)})),
-      cit:[...STREAM.cit.values()].map(c => ({name:c.name, plat:c.plat, pts:c.pts, role:c.role, missed:c.missed, outcast:c.outcast, vote:c.vote, body:!!c.bot}))}; },
+      crowd:activeCitizens(), cit:[...STREAM.cit.values()].map(c => ({everRole:c.everRole, name:c.name, plat:c.plat, pts:c.pts, role:c.role, missed:c.missed, outcast:c.outcast, vote:c.vote, body:!!c.bot}))}; },
   start(diff){ if (diff) SET.diff = diff; startStage(STAGES.findIndex(x => x.free)); helpEl.style.display = 'none'; if (paused) togglePause(true);
     STREAM.nextVote = STREAM.cfg.voteEvery; STREAM.saving = null; for (const c of STREAM.cit.values()){ c.bot = null; c.hat = null; if (!c.outcast) citBody(c); } rankRoles(); dressSeats(); },
   setCfg(o){ Object.assign(STREAM.cfg, o); if (o.diff){ SET.diff = o.diff; applyDiff(); } },

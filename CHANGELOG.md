@@ -18,3 +18,9 @@
 - End vote button on the vote card (or press E).
 - Five permanent helper mice named after the top 5 citizens (Mayor, Sheriff, Treasurer, Secretary, Councillor; "vacant" until someone earns it). Other citizens get ordinary named mice.
 - Stream production is winner-takes-all: the town hall only builds the vote winner and saves up bodies when short. Votes typed between windows still set a viewer's choice.
+
+## r10 · 2026-11-17
+- Waves grow with the audience: +1 rat per citizen active in the last 5 minutes (shown on the stream status).
+- Stream defaults: vote every 180 s for 45 s, Medium difficulty (website stays Easy). End vote button (or E) on the vote card.
+- Outcasts: only citizens who have held a top-5 title can be cast out for missing 3 votes.
+- Mobile: tap the left thumb to drop what you carry.
