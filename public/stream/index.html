@@ -124,7 +124,7 @@ function onChat(plat, name, text){
 function onGift(plat, name, coins, label){ line(`<span class="pf">${PF[plat] || ''}</span><b>${esc(name)}</b> sent ${esc(label || coins + ' coins')} 🎁`, 'sys'); const z = Z(); if (z && started) z.gift(name, plat, coins); }
 // ---------- Twitch: anonymous read-only IRC over WebSocket ----------
 let tw = null;
-function twConnect(){ if (tw) try { tw.close(); } catch(e){} const ch = (S.twCh || '').toLowerCase().replace(/^#/, ''); if (!ch) return; $('twSt').textContent = 'connecting…'; $('twSt').className = 'st';
+function twConnect(){ if (tw) try { tw.onclose = null; tw.close(); } catch(e){} const ch = (S.twCh || '').toLowerCase().replace(/^#/, ''); if (!ch) return; $('twSt').textContent = 'connecting…'; $('twSt').className = 'st';
   tw = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
   tw.onopen = () => { tw.send('CAP REQ :twitch.tv/tags'); tw.send('PASS SCHMOOPIIE'); tw.send('NICK justinfan' + (10000 + Math.floor(Math.random() * 80000))); tw.send('JOIN #' + ch); };
   tw.onmessage = e => { for (const raw of String(e.data).split('\r\n')){ if (!raw) continue; if (raw.startsWith('PING')){ tw.send('PONG :tmi.twitch.tv'); continue; }
@@ -132,7 +132,7 @@ function twConnect(){ if (tw) try { tw.close(); } catch(e){} const ch = (S.twCh 
     const m = raw.match(/^(?:@(\S+) )?:(\w+)!\S+ PRIVMSG #\S+ :(.*)$/); if (!m) continue;
     const tags = Object.fromEntries((m[1] || '').split(';').map(kv => kv.split('='))); const name = tags['display-name'] || m[2];
     if (tags.bits) onGift('tw', name, +tags.bits, tags.bits + ' bits'); onChat('tw', name, m[3]); } };
-  tw.onclose = () => { $('twSt').textContent = 'disconnected'; $('twSt').className = 'st err'; };
+  tw.onclose = () => { $('twSt').textContent = 'disconnected, retrying…'; $('twSt').className = 'st err'; clearTimeout(twConnect.t); twConnect.t = setTimeout(twConnect, 5000); };
 }
 // ---------- TikTok via tik.tools ----------
 let tt = null, ttRetry = 0;
