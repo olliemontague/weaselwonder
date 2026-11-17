@@ -992,11 +992,11 @@ function killRat(r){
 
 // ---------- the fallen: a dead squirrel stays where it fell. Left out, a rat eats it (worth 3 rats of food); carried to the
 // medical tent it becomes 2 respawns. The town starts with 10 respawns; each comeback at the tent uses one ----------
-const FALLEN_FOOD = 3, FALLEN_EAT = 6, RESCUE_RESPAWNS = 2, START_RESPAWNS = 10;
+const FALLEN_FOOD = 3, FALLEN_EAT = 6, RESCUE_RESPAWNS = 2, START_RESPAWNS = 10, RESP_CAP = 20;   // respawns cap at 20 so rescue farming cannot run away
 const RESP = {on:false, n:START_RESPAWNS};
 const respEl = document.createElement('div'); document.body.appendChild(respEl);
 respEl.style.cssText = 'position:fixed;left:12px;top:80px;padding:4px 10px;border-radius:10px;font:800 12px system-ui;letter-spacing:.06em;color:#fff;z-index:20;pointer-events:none;box-shadow:0 2px 6px #0006;display:none';
-function setResp(n){ RESP.n = n; respEl.textContent = `✚ RESPAWNS ${n}`; respEl.style.display = RESP.on ? 'block' : 'none'; respEl.style.background = n <= 3 ? '#a8322a' : '#6b5440'; }
+function setResp(n){ n = Math.min(n, RESP_CAP); RESP.n = n; respEl.textContent = `✚ RESPAWNS ${n}`; respEl.style.display = RESP.on ? 'block' : 'none'; respEl.style.background = n <= 3 ? '#a8322a' : '#6b5440'; }
 const inTent = p => Math.abs(p.x - TENT.x) < 2.8 && Math.abs(p.z - TENT.z) < 2.8;
 function makeFallen(at, face){
   const m = SkeletonUtils.clone(wGltf.scene); m.visible = true; m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1);
@@ -2608,7 +2608,7 @@ const STAGES = [
     ],
     tickAll(dt){   // a steady stream of zombie rats out of the woods until you win
       if (tut.won) return; tut.streamT = (tut.streamT || 0) - dt;
-      if (tut.streamT <= 0 && rats.length < 14){ tut.streamT = 0.9; spawnRat(new THREE.Vector3(rnd(-9, 9), 0, -69), true); const r = rats[rats.length - 1]; r.rush = true; r.hp = r.maxHp = 4; }
+      if (tut.streamT <= 0 && rats.length < 20){ tut.streamT = 0.6; spawnRat(new THREE.Vector3(rnd(-11, 11), 0, -67), true); const r = rats[rats.length - 1]; r.rush = true; r.hp = r.maxHp = 6; if (Math.random() < 0.15){ r.size = 3; r.root.scale.setScalar(RAT_SCALE * vis(3)); r.hp = r.maxHp = 14; } }
     },
     onDeploy(){
       const box = OUT.box; W.carrying = null; W.root.remove(box.root); scene.remove(box.root); OUT.box = null; scene.remove(OUT.site); scene.remove(OUT.siteSign); OUT.site = null; tut.won = true;
