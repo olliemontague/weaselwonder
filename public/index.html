@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zombuild · live with weaselwonder</title>
+<meta name="description" content="Zombuild: hold the town against the zombie rats. Play the tutorial in your browser, or join weaselwonder's live game.">
+<meta name="theme-color" content="#0f120d">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0f120d; --ink:#f3ecd8; --mute:#b7ad92; --gold:#e8b94a; --gold2:#f6d77e; --bone:#e6dcc0; --rat:#7fbf3f; --red:#c8392b; --card:rgba(22,24,18,.86); --line:rgba(232,185,74,.28); }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font:16px/1.45 Inter, system-ui, sans-serif; }
+  body{ min-height:100svh; overflow-x:hidden; }
+  #snow{ position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+  .bg{ position:fixed; inset:0; z-index:0; background:
+      radial-gradient(1200px 700px at 70% -10%, rgba(232,185,74,.12), transparent 60%),
+      linear-gradient(180deg, rgba(15,18,13,.35), rgba(15,18,13,.92) 55%, #0f120d),
+      url(/hero.jpg) center top / cover no-repeat; filter:saturate(.9); }
+  .wrap{ position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:28px 20px 90px; display:grid; grid-template-columns: 1.05fr .95fr; gap:28px; align-items:start; }
+  @media (max-width: 860px){ .wrap{ grid-template-columns:1fr; padding-top:18px; } }
+  .logo{ font-family:'Black Ops One', Impact, sans-serif; font-size:clamp(54px, 9vw, 104px); line-height:.9; letter-spacing:.02em; color:var(--gold2);
+         text-shadow: 0 3px 0 #6b4a1c, 0 10px 30px rgba(0,0,0,.6); margin:8px 0 6px; }
+  .logo small{ display:block; font:800 13px/1.2 Inter, sans-serif; letter-spacing:.32em; color:var(--bone); margin-top:12px; text-shadow:none; }
+  .tag{ font-size:19px; color:var(--ink); max-width:34ch; margin:16px 0 22px; }
+  .tag b{ color:var(--rat); }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; backdrop-filter: blur(6px); box-shadow: 0 20px 50px rgba(0,0,0,.45); }
+  .status{ display:inline-flex; align-items:center; gap:10px; padding:8px 14px; border-radius:999px; font-weight:800; letter-spacing:.08em; font-size:13px;
+           background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); }
+  .status .dot{ width:10px; height:10px; border-radius:50%; background:#777; box-shadow:0 0 0 0 rgba(0,0,0,0); }
+  body[data-live="1"] .status{ background:rgba(200,57,43,.18); border-color:rgba(200,57,43,.6); }
+  body[data-live="1"] .status .dot{ background:#ff4b3a; animation: pulse 1.4s infinite; }
+  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(255,75,58,.7);} 100%{ box-shadow:0 0 0 12px rgba(255,75,58,0);} }
+  .live-only{ display:none; } body[data-live="1"] .live-only{ display:block; } body[data-live="1"] .offline-only{ display:none; }
+  .cta{ display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:16px 18px; border-radius:14px; border:0; cursor:pointer; text-decoration:none;
+        font:800 19px/1 Inter, sans-serif; color:#1b1408; background:linear-gradient(180deg, var(--gold2), var(--gold)); box-shadow:0 6px 0 #8a6420, 0 12px 30px rgba(232,185,74,.25); transition:transform .08s; }
+  .cta:active{ transform:translateY(3px); box-shadow:0 3px 0 #8a6420; }
+  .cta.alt{ background:linear-gradient(180deg, #2d3326, #22271d); color:var(--ink); box-shadow:0 6px 0 #11140e; border:1px solid rgba(255,255,255,.08); margin-top:12px; font-size:16px; }
+  .field{ width:100%; padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,.16); background:rgba(0,0,0,.35); color:var(--ink); font:600 17px Inter, sans-serif; margin:12px 0; }
+  .slots{ display:flex; gap:6px; margin:14px 0 4px; flex-wrap:wrap; } .slots i{ width:22px; height:22px; border-radius:6px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); }
+  .slots i.on{ background:var(--rat); border-color:#a5e36b; }
+  .fine{ color:var(--mute); font-size:13px; margin-top:12px; }
+  h3{ margin:0 0 12px; font:800 14px Inter, sans-serif; letter-spacing:.2em; color:var(--gold); text-transform:uppercase; }
+  .how{ list-style:none; padding:0; margin:0; display:grid; gap:12px; }
+  .how li{ display:grid; grid-template-columns:34px 1fr; gap:10px; align-items:start; }
+  .how .ic{ width:34px; height:34px; display:grid; place-items:center; border-radius:10px; background:rgba(232,185,74,.12); border:1px solid var(--line); font-size:18px; }
+  .how b{ color:var(--gold2); }
+  .links{ display:grid; gap:10px; margin-top:6px; }
+  .links a{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-radius:12px; color:var(--ink); text-decoration:none; font-weight:700;
+            background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); }
+  .links a:hover{ border-color:var(--gold); }
+  .links a span{ color:var(--mute); font-weight:600; font-size:14px; }
+  .shot{ border-radius:16px; overflow:hidden; border:1px solid var(--line); box-shadow:0 20px 50px rgba(0,0,0,.5); margin-bottom:18px; aspect-ratio: 16/10; background:#222 url(/hero.jpg) center/cover; }
+  .cast{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .cast span{ font-size:13px; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:var(--bone); }
+  #iamWeasel{ position:fixed; right:14px; bottom:14px; z-index:5; padding:9px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.5); color:var(--mute); font:700 13px Inter, sans-serif; cursor:pointer; text-decoration:none; }
+  .ver{ position:fixed; left:14px; bottom:14px; z-index:5; color:rgba(255,255,255,.35); font-size:12px; }
+</style>
+</head>
+<body data-live="0">
+<div class="bg"></div><canvas id="snow"></canvas>
+<div class="wrap">
+  <section>
+    <div class="logo">ZOMBUILD<small>LIVE WITH WEASELWONDER</small></div>
+    <p class="tag">Hold the town against a plague of <b>zombie rats</b>. Carry the dead home, turn them into wire, sandbags and turrets, and push your outposts north to the woods.</p>
+    <div class="status" id="liveStatus"><span class="dot"></span><span id="liveText">Checking…</span></div>
+
+    <div class="card" style="margin-top:18px">
+      <!-- weasel is live: join the live game -->
+      <div class="live-only">
+        <h3>Join the live game</h3>
+        <div class="slots" id="slots"></div>
+        <div class="fine" id="slotLine">&nbsp;</div>
+        <form id="joinForm" autocomplete="off">
+          <input id="nameIn" class="field" placeholder="Your player name" maxlength="14" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Your player name">
+          <button class="cta" type="submit">Join the game</button>
+        </form>
+        <div class="fine">On TikTok? Type <b>join</b> in the chat to become a citizen and vote.</div>
+      </div>
+      <!-- weasel is offline: play the tutorial -->
+      <div class="offline-only">
+        <h3>Weasel is offline</h3>
+        <p style="margin:0 0 16px;color:var(--mute)">Learn the game while you wait. The tutorial runs in your browser, on phone or desktop.</p>
+        <a class="cta" href="/tutorial/">▶ Play the latest tutorial</a>
+        <div class="fine">No download, no sign-up. Best on a laptop or a recent phone.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shot" role="img" aria-label="The town of Zombuild in the snow"></div>
+    <div class="card">
+      <h3>How it works</h3>
+      <ul class="how">
+        <li><span class="ic">🐭</span><div><b>Start as a mouse.</b> Carry dead rats home to the corpse pile. Carry together and you're faster.</div></li>
+        <li><span class="ic">🧪</span><div><b>Earn a potion</b> and become a squirrel with a bone club and a crossbow.</div></li>
+        <li><span class="ic">🏭</span><div><b>The town hall turns bodies into gear:</b> barbed wire, sandbags, traps and turrets. The town votes on what gets made.</div></li>
+        <li><span class="ic">🌲</span><div><b>Push outposts north</b> along their conveyor belts, and build in the end zone by the woods to win.</div></li>
+      </ul>
+      <div class="cast"><span>🦡 Mayor</span><span>🦊 Sheriff</span><span>🐾 Treasurer mole</span><span>🐸 Secretary</span><span>🐇 Councillor</span><span>🐭 Citizens</span></div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>Follow weaselwonder</h3>
+      <div class="links">
+        <a href="https://www.tiktok.com/@weaselwonder" target="_blank" rel="noopener">TikTok <span>@weaselwonder ↗</span></a>
+        <a href="https://www.twitch.tv/weaselwonder" target="_blank" rel="noopener">Twitch <span>weaselwonder ↗</span></a>
+        <a id="discordLink" href="#" target="_blank" rel="noopener" hidden>Discord <span>Join the server ↗</span></a>
+      </div>
+    </div>
+  </section>
+</div>
+<a id="iamWeasel" href="/weasel">I am Weasel</a>
+<div class="ver" id="ver"></div>
+<script>
+  // live status: the room says whether Weasel (the host) is connected
+  const $ = id => document.getElementById(id);
+  async function poll(){
+    try{
+      const r = await fetch('/api/status', {cache:'no-store'}); const s = await r.json();
+      const live = !!s.host; document.body.dataset.live = live ? '1' : '0';
+      $('liveText').textContent = live ? 'WEASEL IS LIVE' : 'WEASEL IS OFFLINE';
+      const max = s.max || 5, n = (s.players || []).length; $('slots').innerHTML = Array.from({length:max}, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('');
+      $('slotLine').textContent = n >= max ? `Full: ${(s.waiting || []).length} waiting, you'll queue and watch` : `${max - n} of ${max} player slots free`;
+    }catch(e){ document.body.dataset.live = '0'; $('liveText').textContent = 'WEASEL IS OFFLINE'; }
+  }
+  poll(); setInterval(poll, 15000);
+  $('joinForm').addEventListener('submit', e => { e.preventDefault(); const n = $('nameIn').value.trim(); try{ localStorage.setItem('zb_name', n); }catch(_){} location.href = '/play' + (n ? '?name=' + encodeURIComponent(n) : ''); });
+  fetch('/version', {cache:'no-store'}).then(r => r.json()).then(v => { if (v && v.rel) $('ver').textContent = 'build ' + v.rel; if (v && v.discord){ const a = $('discordLink'); a.href = v.discord; a.hidden = false; } }).catch(() => {});
+  // falling snow
+  (function(){ const c = $('snow'), g = c.getContext('2d'); let W, H, flakes = [];
+    function size(){ W = c.width = innerWidth * devicePixelRatio; H = c.height = innerHeight * devicePixelRatio; flakes = Array.from({length: Math.min(160, innerWidth / 6)}, () => ({x:Math.random()*W, y:Math.random()*H, r:(Math.random()*2+0.6)*devicePixelRatio, v:(Math.random()*0.6+0.3)*devicePixelRatio, w:Math.random()*6.28})); }
+    size(); addEventListener('resize', size);
+    (function tick(){ g.clearRect(0, 0, W, H); g.fillStyle = 'rgba(255,255,255,.75)'; for (const f of flakes){ f.y += f.v; f.w += 0.01; f.x += Math.sin(f.w) * 0.3; if (f.y > H){ f.y = -5; f.x = Math.random()*W; } g.beginPath(); g.arc(f.x, f.y, f.r, 0, 6.28); g.fill(); } requestAnimationFrame(tick); })(); })();
+</script>
+</body>
+</html>
