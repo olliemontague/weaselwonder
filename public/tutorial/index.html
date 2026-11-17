@@ -1252,7 +1252,7 @@ function trayFree(k){ const T2 = TRAYS[KIT_TRAY[k]]; return T2.slots.find(sl => 
 function produce(){
   const votes = {}; for (const o of FP_OPTS) votes[o.k] = 0; if (FP.vote) votes[FP.vote] += 6;
   for (const c of FP.citizens) votes[c] = (votes[c] || 0) + 1;
-  if (STREAM.on) FP.citizens = [...STREAM.cit.values()].filter(c => !c.outcast && c.vote).map(c => c.vote);
+  if (STREAM.on && streamProduce()) return;
   let budget = Math.min(pile.length, 10); const made = {}; const out = [];
   for (let guard = 0; guard < 30; guard++){
     let best = null, bs = -1; for (const o of FP_OPTS){ const v = votes[o.k]; if (!v || optCost(o) > budget) continue; if (o.k === 'box' ? (OUT.box || L3.on && FP.wonSite) : !trayFree(o.k)) continue; const sc = v / ((made[o.k] || 0) + 1); if (sc > bs){ bs = sc; best = o; } }
@@ -1263,6 +1263,22 @@ function produce(){
   FP.made += out.length; if (out.length){ const tally = {}; for (const o of out) tally[o.n] = (tally[o.n] || 0) + 1; toast('Town hall made: ' + Object.entries(tally).map(([n, c]) => `${c} ${n.toLowerCase()}`).join(', ')); drawClock('00:00'); }
   else toast(pile.length ? 'Town hall: not enough bodies for what was voted' : 'Town hall: the corpse pile is empty');
   if (!STREAM.on) FP.citizens = FP.citizens.map(() => ['bag', 'bag', 'wire', 'wire', 'trap', 'turret', 'box'][Math.floor(Math.random() * 7)]);
+}
+
+// stream mode production: the vote winner (citizens 1 each, the host 6) is the only thing built. If the pile is short, the town saves up for it
+function streamWinner(){ const t = {}; for (const o of FP_OPTS) t[o.k] = 0; for (const c of STREAM.cit.values()) if (!c.outcast && c.vote) t[c.vote]++; if (FP.vote) t[FP.vote] += 6;
+  let best = null; for (const o of FP_OPTS) if (t[o.k] > 0 && (!best || t[o.k] > t[best.k])) best = o; return best; }
+function streamProduce(){
+  const o = streamWinner(); if (!o){ STREAM.saving = null; return false; }
+  STREAM.saving = o.k; const cost = optCost(o); let made = 0;
+  for (let n = 0; n < 4 && pile.length >= cost; n++){
+    if (o.k === 'box'){ if (OUT.box) break; OUT.box = makeOutpostBox(); crateVisible(false); }
+    else { const sl = trayFree(o.k); if (!sl) break; addCoil(sl, o.k); }
+    for (let i = 0; i < cost; i++){ const b = pile.pop(); if (b) scene.remove(b.root); } made++;
+  }
+  setPile(); updMound(); FP.made += made;
+  toast(made ? `Town hall made ${made} × ${o.n.toLowerCase()} (the vote)` : `Town hall is saving up for ${o.n.toLowerCase()}: ${pile.length}/${cost} bodies`);
+  return true;
 }
 function fpWave(){ FP.wave++; const n = FP.d.base + (FP.wave - 1) * FP.d.grow, hp = Math.round(FP.d.hp + (FP.wave - 1) * FP.d.hpGrow); FP.spawnLeft = n; FP.spawnHp = hp; FP.spawnT = 0;
   toast(`WAVE ${FP.wave}: ${n} angry rats are storming ${OUT.deployed ? 'your outpost' : 'the town'}!`); sfx.squeak(); }
@@ -1305,7 +1321,13 @@ function tagSprite(text, col){ const c = document.createElement('canvas'); c.wid
   g.font = '700 30px system-ui'; const w = Math.min(250, g.measureText(text).width + 24); g.fillStyle = 'rgba(20,16,12,0.78)'; g.beginPath(); g.roundRect((256 - w) / 2, 10, w, 44, 14); g.fill();
   g.fillStyle = col || '#ffe08a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 128, 33, 240);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), depthTest:false, transparent:true})); sp.scale.set(1.9, 0.48, 1); sp.position.y = 1.35; sp.renderOrder = 9; return sp; }
-function citBody(c){   // give a citizen a mouse in town, if there is room
+function dropCitBot(c){ const b = c.bot; if (!b) return; if (b.body){ const bd = b.body; b.body = null; b.root.remove(bd.root); bd.carried = false; bd.root.position.copy(b.root.position); bd.root.rotation.set(0, 0, Math.PI/2); scene.add(bd.root); }
+  scene.remove(b.root); const i = MICE.indexOf(b); if (i >= 0) MICE.splice(i, 1); c.bot = null; c.hat = null; }
+function dressSeats(){ const seats = STREAM.seats || []; for (let k = 0; k < seats.length; k++){ const b = seats[k], r = ROLES[k], c = [...STREAM.cit.values()].find(x => x.role === k);
+    const label = r[3] + ' ' + r[0] + ' · ' + (c ? c.name : '(vacant)'); if (b.label === label) continue; b.label = label; if (b.tag) b.root.remove(b.tag); b.tag = tagSprite(label, c ? '#ffd27a' : '#b9ad97'); b.tag.position.y = 1.0; b.root.add(b.tag);
+    if (!b.hat){ b.hat = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.34, 8), toon(r[2])); b.hat.position.y = 0.78; b.root.add(b.hat); b.root.scale.setScalar(1.3); } } }
+function citBody(c){   // give a citizen a mouse in town, if there is room (the top 5 live in the helper seats instead)
+  if (c.role >= 0 && STREAM.seats && STREAM.seats.length) return;
   if (c.bot || c.outcast || [...STREAM.cit.values()].filter(x => x.bot).length >= STREAM.cfg.maxBodies) return;
   const k = STREAM.order.indexOf(c.key), at = new THREE.Vector3(PILE.x - 3 + (k % 8) * 0.9, 0, PILE.z + 2.4 + Math.floor(k / 8) * 0.9);
   const b = makeMouseBot(at); b.home = at.clone(); b.carryK = 1.6; b.cit = c; c.bot = b; c.tag = tagSprite(c.name); b.root.add(c.tag); dressCit(c); }
@@ -1315,7 +1337,8 @@ function dressCit(c){ const b = c.bot; if (!b) return; if (c.hat){ b.root.remove
   b.root.remove(c.tag); c.tag = tagSprite((r ? r[3] + ' ' + r[0] + ' ' : '') + c.name, r ? '#ffd27a' : '#f3ead8'); if (r) c.tag.position.y = 1.0; b.root.add(c.tag); }
 function citKey(name, plat){ return (plat || 'x') + ':' + String(name).toLowerCase(); }
 function rankRoles(){ const ranked = [...STREAM.cit.values()].filter(c => !c.outcast).sort((a, b) => b.pts - a.pts || a.joined - b.joined);
-  ranked.forEach((c, i) => { const r = i < 5 && c.pts > 0 ? i : -1; if (r !== c.role){ const was = c.role; c.role = r; dressCit(c); if (r >= 0 && (was < 0 || r < was)) toast(`${ROLES[r][3]} ${c.name} is now ${ROLES[r][0]}!`); } }); }
+  ranked.forEach((c, i) => { const r = i < 5 && c.pts > 0 ? i : -1; if (r !== c.role){ const was = c.role; c.role = r; if (r >= 0 && (was < 0 || r < was)) toast(`${ROLES[r][3]} ${c.name} is now ${ROLES[r][0]}!`); } });
+  for (const c of STREAM.cit.values()){ if (c.outcast) continue; if (c.role >= 0 && STREAM.seats && STREAM.seats.length){ if (c.bot) dropCitBot(c); } else if (!c.bot) citBody(c); else dressCit(c); } dressSeats(); }
 const ZB = window.ZB = {
   STREAM, ROLES,
   join(name, plat){ name = String(name || '').slice(0, 18); if (!name) return null; const key = citKey(name, plat); let c = STREAM.cit.get(key);
@@ -1324,9 +1347,9 @@ const ZB = window.ZB = {
     citBody(c); toast(`🐭 ${c.name} joined the town`); return c; },
   comment(name, plat){ const c = STREAM.cit.get(citKey(name, plat)); if (!c || c.outcast) return; const t = Date.now(); if (t - c.lastC < STREAM.cfg.cooldown * 1000) return; c.lastC = t; c.pts += STREAM.cfg.ptsComment; rankRoles(); },
   gift(name, plat, coins){ const c = ZB.join(name, plat); if (!c) return; c.pts += Math.max(1, Math.round(coins || 1)) * STREAM.cfg.ptsGiftCoin; rankRoles(); },
-  vote(name, plat, opt){ const w = STREAM.window; if (!w) return false; const c = STREAM.cit.get(citKey(name, plat)); if (!c || c.outcast) return false;
+  vote(name, plat, opt){ const w = STREAM.window; const c = STREAM.cit.get(citKey(name, plat)); if (!c || c.outcast) return false;
     const o = typeof opt === 'number' ? FP_OPTS[opt - 1] : FP_OPTS.find(x => x.k === opt || x.n.toLowerCase().startsWith(String(opt).toLowerCase())); if (!o) return false;
-    if (!w.voted.has(c.key)){ c.pts += STREAM.cfg.ptsVote; c.votes++; } w.voted.set(c.key, o.k); c.vote = o.k; rankRoles(); return true; },
+    c.vote = o.k; if (w){ if (!w.voted.has(c.key)){ c.pts += STREAM.cfg.ptsVote; c.votes++; } w.voted.set(c.key, o.k); } rankRoles(); return true; },   /* a vote between windows still sets their choice; points and attendance only count inside a window */
   hostVote(opt){ const o = FP_OPTS[opt - 1]; if (o){ FP.vote = o.k; if (STREAM.window) STREAM.window.host = o.k; } },
   openVote(){ if (STREAM.window || !FP.on) return; STREAM.window = {t:STREAM.cfg.voteLen, voted:new Map(), host:FP.vote}; STREAM.freeze = true; sfx.pick(); },
   closeVote(){ const w = STREAM.window; if (!w) return; STREAM.window = null; STREAM.freeze = false; STREAM.nextVote = STREAM.cfg.voteEvery;
@@ -1336,14 +1359,15 @@ const ZB = window.ZB = {
   tally(){ const t = {}; for (const o of FP_OPTS) t[o.k] = 0; for (const c of STREAM.cit.values()) if (!c.outcast && c.vote) t[c.vote]++; return t; },
   state(){ const lvl = L3.on ? 3 : L2.on ? 2 : OUT.deployed ? 1 : 0;
     return {on:FP.on, wave:FP.wave, waveIn:Math.max(0, Math.ceil(FP.waveT || 0)), attacking:FP.spawnLeft > 0 || rats.some(r => r.storm), hall:Math.ceil(FP.hall || 0), hallMax:FP.d.hall, pile:pile.length, outpost:lvl, outHp:Math.ceil(Math.max(0, OUT.hp || 0)), won:!!tut.won, lost:!!FP.lost, diff:FP.d.name,
-      vote:STREAM.window ? {left:Math.ceil(STREAM.window.t), n:STREAM.window.voted.size} : null, nextVote:Math.ceil(STREAM.nextVote), tally:ZB.tally(), host:FP.vote,
+      vote:STREAM.window ? {left:Math.ceil(STREAM.window.t), n:STREAM.window.voted.size} : null, saving:STREAM.saving, cycleIn:Math.ceil(FP.cycleT || 0), nextVote:Math.ceil(STREAM.nextVote), tally:ZB.tally(), host:FP.vote,
       opts:FP_OPTS.map((o, i) => ({i:i + 1, k:o.k, n:o.n, icon:o.icon, cost:optCost(o)})),
       cit:[...STREAM.cit.values()].map(c => ({name:c.name, plat:c.plat, pts:c.pts, role:c.role, missed:c.missed, outcast:c.outcast, vote:c.vote, body:!!c.bot}))}; },
   start(diff){ if (diff) SET.diff = diff; startStage(STAGES.findIndex(x => x.free)); helpEl.style.display = 'none'; if (paused) togglePause(true);
-    STREAM.nextVote = STREAM.cfg.voteEvery; for (const c of STREAM.cit.values()){ c.bot = null; c.hat = null; if (!c.outcast) citBody(c); } },
+    STREAM.nextVote = STREAM.cfg.voteEvery; STREAM.saving = null; for (const c of STREAM.cit.values()){ c.bot = null; c.hat = null; if (!c.outcast) citBody(c); } rankRoles(); dressSeats(); },
   setCfg(o){ Object.assign(STREAM.cfg, o); if (o.diff){ SET.diff = o.diff; applyDiff(); } },
 };
-function makeOutcast(c){ c.outcast = true; c.role = -1; c.vote = null; toast(`🚪 ${c.name} missed ${STREAM.cfg.outcastAfter} votes and was cast out!`);
+function makeOutcast(c){ if (!c.bot && STREAM.seats && STREAM.seats.length){ c.role = -1; const at = (STREAM.seats[0] || W).root.position.clone(); const b = makeMouseBot(at); b.cit = c; c.bot = b; c.tag = tagSprite(c.name); b.root.add(c.tag); }
+  c.outcast = true; c.role = -1; c.vote = null; toast(`🚪 ${c.name} missed ${STREAM.cfg.outcastAfter} votes and was cast out!`); setTimeout(rankRoles, 0);
   const b = c.bot; if (!b) return; if (b.body){ const bd = b.body; b.body = null; b.root.remove(bd.root); bd.carried = false; bd.root.position.copy(b.root.position); scene.add(bd.root); }
   b.state = 'outcast'; b.lead = null; b.root.scale.setScalar(1); if (c.hat){ b.root.remove(c.hat); c.hat = null; } b.root.remove(c.tag); c.tag = tagSprite('outcast ' + c.name, '#ff9a8a'); b.root.add(c.tag);
   b.path = [new THREE.Vector3(ROADS[Math.random() < 0.5 ? 0 : 1], 0, TOWN.z0 - 1), new THREE.Vector3(rnd(-12, 12), 0, -30), new THREE.Vector3(rnd(-12, 12), 0, -66)]; }
@@ -2725,7 +2749,7 @@ const STAGES = [
       for (let k = 0; k < 46; k++){ const x = rnd(-22, 22), z = rnd(-78, -68); const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 2.2, 6), toon(0x3a2a1c)); tr.position.set(x, 1.1, z); woods.add(tr);
         const top = new THREE.Mesh(new THREE.ConeGeometry(rnd(1.1, 1.7), rnd(2.6, 3.6), 7), toon(k % 3 ? 0x2f4a3a : 0x3b5a46)); top.position.set(x, 2.6 + rnd(0, 0.6), z); woods.add(top); }
       const vr = FP.voteRing = flat(new THREE.Mesh(new THREE.RingGeometry(0.6, 0.85, 32), new THREE.MeshBasicMaterial({color:0xf2c14e, transparent:true, opacity:0.7, depthWrite:false}))); vr.rotation.x = -Math.PI/2; vr.position.set(VOTE_AT.x, 0.06, VOTE_AT.z); scene.add(vr);
-      for (let k = 0; k < 4; k++){ const at = new THREE.Vector3(PILE.x - 1.6 + k * 1.1, 0, PILE.z + 1.8); const b = makeMouseBot(at); b.home = at.clone(); b.carryK = 1.6; }
+      STREAM.seats = []; for (let k = 0; k < (STREAM.on ? 5 : 4); k++){ const at = new THREE.Vector3(PILE.x - 1.6 + k * 1.1, 0, PILE.z + 1.8); const b = makeMouseBot(at); b.home = at.clone(); b.carryK = 1.6; if (STREAM.on){ b.seat = k; STREAM.seats.push(b); } }
       stockPile(6); setPile(); updMound();
       for (let k = 0; k < d.grazers; k++){ const x = rnd(-14, 14), z = rnd(-40, -6); spawnGrazer(new THREE.Vector3(x, 0, z)); }
       W.root.position.set(VOTE_AT.x + 1.5, 0, VOTE_AT.z - 1.5);

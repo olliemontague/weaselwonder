@@ -36,6 +36,26 @@
   #banner .in{margin:0 30px;background:#a8322aee;border:4px solid #000;border-radius:20px;padding:16px;font:900 30px system-ui;box-shadow:0 10px 40px #000}
   #banner .in b{display:block;font:400 64px 'Black Ops One',system-ui;color:#ffe08a}
   #banner .in small{display:block;font-size:22px;margin-top:6px}
+  #pv{position:absolute;left:656px;top:0;width:608px;height:1080px;pointer-events:none;z-index:5}
+  #top5{position:absolute;left:12px;top:118px;width:250px;background:#14100ce0;border:2px solid var(--gold);border-radius:14px;padding:8px 12px;font-size:16px}
+  #top5 .h{font:900 12px system-ui;letter-spacing:.16em;color:var(--gold)} #top5 ol{margin:4px 0;padding:0;list-style:none}
+  #top5 li{display:flex;gap:6px;align-items:baseline;padding:2px 0;white-space:nowrap;overflow:hidden} #top5 li span{font-size:18px} #top5 li b{flex:1;overflow:hidden;text-overflow:ellipsis}
+  #top5 li em{font-style:normal;color:var(--gold);font-weight:900} #top5 li small{display:block;color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  #top5 .f{font-size:13px;color:var(--dim)} #top5 .f b{color:var(--gold)}
+  #plug{position:absolute;right:10px;bottom:70px;background:#14100cc8;border:1px solid #e8c37a88;border-radius:10px;padding:5px 10px;font:700 13px system-ui;color:var(--dim)} #plug b{color:var(--gold)}
+  #voteBig{position:absolute;left:24px;right:24px;top:150px;display:none;background:#16110cf2;border:4px solid var(--gold);border-radius:24px;padding:18px 20px;box-shadow:0 20px 60px #000}
+  #voteBig .vh{display:flex;justify-content:space-between;align-items:center;background:#a8322a;margin:-18px -20px 12px;padding:10px 20px;border-radius:20px 20px 0 0;font:400 46px 'Black Ops One',system-ui;color:#fff}
+  #voteBig .vh b{font:400 54px 'Black Ops One',system-ui;color:#ffe08a}
+  #voteBig .vx{font:800 24px system-ui;text-align:center;margin-bottom:10px;line-height:1.25} #voteBig .vx b{color:#ffe08a}
+  .vr{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .vr .n{width:58px;height:58px;border-radius:14px;background:var(--gold);color:#1b140c;display:grid;place-items:center;font:900 36px system-ui;flex:none}
+  .vr .bx{flex:1;position:relative;height:58px;border-radius:12px;background:#2a221a;overflow:hidden}
+  .vr .bx i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#5f8a3e,#8ab85a);transition:width .5s}
+  .vr .bx span{position:absolute;left:12px;top:5px;font:900 22px system-ui;text-shadow:0 2px 3px #000}
+  .vr .bx small{position:absolute;left:12px;bottom:4px;font:700 14px system-ui;color:#e8dcc4;text-shadow:0 1px 2px #000}
+  .vr em{width:74px;text-align:right;font:900 26px system-ui;color:var(--gold);font-style:normal} .vr.lead .bx{outline:3px solid #ffe08a}
+  #vbEnd{pointer-events:auto;margin-left:10px;font:800 15px system-ui;padding:5px 12px;border-radius:10px;border:2px solid #000;background:var(--gold);color:#1b140c;cursor:pointer}
+  #voteBig .vf{text-align:center;color:var(--dim);font:700 18px system-ui;margin-top:8px}
   #startbox{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:20}
   #startbox .card{width:560px;text-align:center} #startbox button{font:900 26px system-ui;padding:14px 24px;border-radius:14px;border:0;background:var(--gold);color:#1b140c;cursor:pointer;margin:6px}
   #setbtn{position:fixed;right:10px;bottom:8px;z-index:21;background:#0006;color:#fff8;border:1px solid #fff3;border-radius:10px;font:700 13px system-ui;padding:6px 10px;cursor:pointer}
@@ -61,11 +81,17 @@
     </div>
     <div class="card" id="vote"><div class="tag" id="voteHead">Town hall vote</div><div id="voteRows"></div></div>
     <div class="card" id="statusCard"><div id="status"></div></div>
-    <div class="card" id="board" style="flex:1;overflow:hidden"><div class="tag">Top citizens</div><ol id="boardList"></ol></div>
+    
   </div>
   <div id="gamebox"></div>
   <iframe id="game" src="/tutorial/?mode=stream" allow="autoplay; fullscreen"></iframe>
-  <div id="banner"><div class="in">VOTE NOW<b id="bannerT">60</b><small>Type 1 to 5 in chat · the game is paused</small></div></div>
+  <div id="pv">
+  <div id="top5"><div class="h">TOP CITIZENS</div><ol id="top5List"></ol><div class="f">type <b>join</b> to play</div></div>
+  <div id="plug">PLAY WITH ME · <b>www.weaselwonder.com</b></div>
+  <div id="voteBig"><div class="vh"><span>VOTE NOW</span><b id="vbT">60</b></div>
+    <div class="vx">The town hall builds what wins.<br>Type the <b>number</b> in chat!</div>
+    <div id="vbRows"></div><div class="vf"><span id="vbN">0 votes</span> · game paused <button id="vbEnd">End vote ⏭ (E)</button></div></div>
+</div>
   <div class="col" id="right">
     <div id="cam"><div class="name">WEASELWONDER</div></div>
     <div style="height:14px"></div>
@@ -157,12 +183,16 @@ function refresh(){
   const z = Z(); if (!z || !started) return; const s = z.state(); const tot = Object.values(s.tally).reduce((a, b) => a + b, 0) || 1;
   $('voteHead').textContent = s.vote ? `VOTE OPEN · ${s.vote.left}s · ${s.vote.n} voted` : `Town hall vote · next in ${fmt(s.nextVote)}`;
   $('voteRows').innerHTML = s.opts.map(o => `<div class="row ${s.host === o.k ? 'host' : ''}"><div class="num">${o.i}</div><div class="bar"><i style="width:${(s.tally[o.k] / tot * 100).toFixed(0)}%"></i><span>${o.icon} ${o.n}</span></div><em>${s.tally[o.k]}</em></div>`).join('');
-  $('banner').style.display = s.vote ? 'block' : 'none'; if (s.vote) $('bannerT').textContent = s.vote.left;
+  const DESC = {bag:'walls that hold the rats back', wire:'cuts up rats that walk through', trap:'snaps a rat: a free body', turret:'shoots rats by itself', box:'build an outpost further north'};
+  $('voteBig').style.display = s.vote ? 'block' : 'none';
+  if (s.vote){ const tv = Object.values(s.tally).reduce((a, b) => a + b, 0), lead = Math.max(...Object.values(s.tally)); $('vbT').textContent = s.vote.left; $('vbN').textContent = tv + (tv === 1 ? ' vote' : ' votes');
+    $('vbRows').innerHTML = s.opts.map(o => { const v = s.tally[o.k], pc = tv ? Math.round(v / tv * 100) : 0; return `<div class="vr ${v && v === lead ? 'lead' : ''}"><div class="n">${o.i}</div><div class="bx"><i style="width:${pc}%"></i><span>${o.icon} ${o.n}</span><small>${DESC[o.k]}</small></div><em>${tv ? pc + '%' : '·'}</em></div>`; }).join(''); }
   $('status').innerHTML = `<span>Wave</span><b>${s.attacking ? 'WAVE ' + s.wave + ' ATTACKING' : 'next in ' + fmt(s.waveIn)}</b><span>Town hall</span><b>${s.hall} / ${s.hallMax}</b>
     <span>Corpse pile</span><b>${s.pile}</b><span>Outpost</span><b>${s.outpost ? 'level ' + s.outpost + ' · ' + s.outHp + ' hp' : 'none yet'}</b>
-    <span>Citizens</span><b>${s.cit.filter(c => !c.outcast).length}</b><span>Difficulty</span><b>${s.diff}</b>`;
-  const top = s.cit.filter(c => !c.outcast).sort((a, b) => b.pts - a.pts).slice(0, 10);
-  $('boardList').innerHTML = top.map((c, i) => `<li class="${c.role >= 0 ? 'top' : ''}"><span>${i + 1}</span><b>${c.role >= 0 ? ROLE[c.role][1] + ' ' + ROLE[c.role][0] + ' · ' : ''}${esc(c.name)}</b><small>${PF[c.plat] || ''}${c.missed ? ' · missed ' + c.missed : ''}</small><em>${c.pts}</em></li>`).join('') || '<li><b style="color:#b9ad97">Type join in chat to be first!</b></li>';
+    <span>Building</span><b>${s.saving ? (s.opts.find(o => o.k === s.saving) || {}).n + ' in ' + s.cycleIn + 's' : 'nothing voted'}</b><span>Citizens</span><b>${s.cit.filter(c => !c.outcast).length}</b><span>Difficulty</span><b>${s.diff}</b>`;
+  const top = s.cit.filter(c => !c.outcast).sort((a, b) => b.pts - a.pts).slice(0, 5);
+  $('top5List').innerHTML = top.map((c, i) => `<li><span>${c.role >= 0 ? ROLE[c.role][1] : '🐭'}</span><b>${esc(c.name)}<small>${c.role >= 0 ? ROLE[c.role][0] : 'citizen'}</small></b><em>${c.pts}</em></li>`).join('') || '<li><b style="color:#b9ad97">nobody yet</b></li>';
+  $('top5').style.display = s.vote ? 'none' : 'block';
   if (s.won && !refresh.ended){ refresh.ended = true; line('🏆 THE TOWN WON! The end zone is ours.', 'sys'); }
   if (s.lost && !refresh.ended){ refresh.ended = true; line('💀 The town hall fell. Restarting soon…', 'bad'); }
 }
@@ -185,8 +215,9 @@ const openSet = v => { $('settings').style.display = v ? 'block' : 'none'; };
 $('setbtn').onclick = () => openSet($('settings').style.display !== 'block'); $('setClose').onclick = () => openSet(false); $('startSet').onclick = () => openSet(true);
 addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 's' || e.key === 'S') openSet($('settings').style.display !== 'block'); });
 // host votes with the number keys while the game has focus too
-function hostKeys(e){ if (/^[1-5]$/.test(e.key) && Z() && Z().STREAM.window){ Z().hostVote(+e.key); } }
+function hostKeys(e){ if (!Z()) return; if (/^[1-5]$/.test(e.key) && Z().STREAM.window){ Z().hostVote(+e.key); } if ((e.key === 'e' || e.key === 'E') && Z().STREAM.window) Z().closeVote(); }
 addEventListener('keydown', hostKeys);
+$('vbEnd').onclick = () => Z() && Z().closeVote();
 // ---------- start ----------
 let ready = false;
 addEventListener('message', e => { if (e.data && e.data.zb === 'ready'){ ready = true; } });
