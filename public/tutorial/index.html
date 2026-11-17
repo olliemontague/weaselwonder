@@ -1464,7 +1464,7 @@ function vwApplyWorld(m){
   while (VIEWER.out < m.out){ VIEWER.out++; try { OUT.box = makeOutpostBox(); if (VIEWER.out === 1) deployOutpost(); else if (VIEWER.out === 2) deployL2(); else deployL3(); } catch(e){} }
 }
 function vwTick(dt){
-  const S2 = VIEWER.snap; if (!S2) return;
+  const S2 = VIEWER.snap; if (!S2 || !S2.h || !S2.r || !S2.p){ VIEWER.ang = (VIEWER.ang || 0) + dt * 0.1; camera.position.set(Math.sin(VIEWER.ang) * 18, 15, 12 + Math.cos(VIEWER.ang) * 18); camera.lookAt(0, 0, 8); return; }
   // the host squirrel (weaselwonder)
   const h = S2.h; vwLerp(W.root.position, h[0], h[1], dt); W.root.rotation.y = vwAngle(W.root.rotation.y, h[2], dt);
   const hm = Math.hypot(h[0] - (VIEWER.hp || [0,0])[0], h[1] - (VIEWER.hp || [0,0])[1]) > 0.02; VIEWER.hp = h;
@@ -1501,6 +1501,7 @@ const meEl = document.createElement('div'); meEl.id = 'me';
 meEl.style.cssText = 'pointer-events:none;position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:7;min-width:300px;max-width:94vw;background:#1d1813ee;border:3px solid #e8c37a;border-radius:16px;padding:8px 14px;color:#f3ead8;font:700 15px system-ui;text-align:center;display:none';
 document.body.appendChild(meEl);
 function vwHud(){ const m = VIEWER.me, st = VIEWER.status;
+  if (st === 'playing' && !m){ meEl.innerHTML = '<b style="color:#e8c37a">You are in!</b><br>Waiting for weaselwonder\'s town to start…'; return; }
   if (st !== 'playing' || !m){ meEl.innerHTML = st === 'waiting' ? '<b style="color:#e8c37a">The squad is full</b><br>You are in the queue and watching live. You join when a slot opens.' : st === 'offline' ? '<b style="color:#e8c37a">Weasel is offline</b><br>Come back when the stream is live, or play the tutorial at weaselwonder.com' : st || 'Connecting…'; return; }
   const sq = m.kind === 'squirrel', pc = Math.min(100, Math.round(m.since / m.need * 100));
   meEl.innerHTML = `<div style="display:flex;justify-content:space-between;gap:14px"><span>${sq ? '🐿️ SQUIRREL' : '🐭 MOUSE'}</span><span>⭐ ${m.pts} pts</span><span>#${m.rank} of ${m.of}</span></div>` +

@@ -32,3 +32,9 @@
 - 10 rats to the pile earns a potion: the highest-scoring mouse with a potion becomes a squirrel (3 slots). Squirrels shoot rats by themselves. Once all 3 slots are full every squirrel runs on a timer: 60 s, +5 s per kill, 3 min cap; then back to a mouse.
 - All of it is adjustable live in Settings: max players, squirrel slots, rats per potion, squirrel timer numbers. Kick any website player from the list.
 - Server: host config (max players), private messages to one player, broadcasts, player actions. /play now serves the new player page; /weasel still serves the old r6 game.
+
+## r12 · 2026-11-17
+- Corpse Crafter moved to weaselwonder.com/corpsecrafter (host: /corpsecrafter/weasel) with its own game room, so it can never collide with Zombuild players. /weasel redirects there.
+- "I am Weasel" button removed from the home page.
+- /stream is password protected (STREAM_PASSWORD secret in Cloudflare; 30-day login cookie).
+- Player page: waits on a slowly turning town view with "Waiting for weaselwonder's town" until the stream game sends its first frame.
