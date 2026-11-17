@@ -156,6 +156,7 @@ const setHint = t => { if (hintEl.textContent !== t) hintEl.textContent = t; };
 
 // ---------- renderer / scene ----------
 const renderer = new THREE.WebGLRenderer({antialias:true});
+const NORENDER = new URLSearchParams(location.search).has('norender');
 const LITE = new URLSearchParams(location.search).get('mode') === 'play' && (matchMedia('(pointer:coarse)').matches || innerWidth < 900);
 renderer.setPixelRatio(LITE ? 1 : Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -954,7 +955,7 @@ function updMice(dt){
       if (b.path.length){ const d = botStep(b, b.path[0], spd, dt); b.spd = spd; if (d < 0.3) b.path.shift(); botAnim(b, 'carry', 0.9); }
       else { b.spd = 0; botAnim(b, 'carry', 0); b.dropT = (b.dropT || 0) + dt; if (b.dropT > 0.5){ botDrop(b); b.state = 'idle'; } }
     } else if (b.state === 'player'){ updPlayer(b, dt); continue;
-    } else if (b.state === 'dead'){ b.deadT -= dt; if (b.deadT <= 0 && respawnMouseAtTent(b)){ b.state = 'idle'; b.path = b.home ? [b.home.clone()] : []; } continue;
+    } else if (b.state === 'dead'){ b.deadT -= dt; if (b.deadT <= 0 && respawnMouseAtTent(b, true)){ b.state = 'idle'; b.path = b.home ? [b.home.clone()] : []; } continue;
     } else if (b.state === 'fetch'){   // free play: fetch a body from the field and carry it to the corpse pile
       const t = b.target; if (!t || !bodies.includes(t) || t.carried || t.riding){ b.state = 'idle'; b.target = null; }
       else { const d = botStep(b, t.root.position, MOUSE_RUN * 0.65, dt); botAnim(b, 'run', 1); if (d < 0.5){ b.target = null; botGive(b, t); b.state = 'lead'; b.dropT = 0; b.path = homeRoute(b.root.position); } }
@@ -984,7 +985,7 @@ const BONES = new THREE.Group(); scene.add(BONES); BONES.visible = false;
   for (let k = 0; k < 26; k++){ const m = new THREE.Mesh(g, boneM); m.rotation.set(Math.PI/2, 0, rnd(0, 6.28)); m.position.set(rnd(-3.2, 3.2), 0.04, -24 + rnd(-2, 2)); m.scale.setScalar(rnd(0.7, 1.3)); BONES.add(m); } }
 function killRat(r){
   if (r.claim){ r.claim.eater = null; r.claim = null; }
-  r.dead = true; r.bar.visible = false; r.press = r.stuck = false; { const m = r.root.children[0]; m.rotation.set(0, 0, 0); m.position.y = 0; }
+  r.dead = true; r.diedAt = time; r.bar.visible = false; r.press = r.stuck = false; { const m = r.root.children[0]; m.rotation.set(0, 0, 0); m.position.y = 0; }
   burst(r.root.position.clone().setY(0.5), 0x7fbf3f, 16, 4, 5); sfx.kill();
   setRatAnim(r, 'idle', 0); r.mixer.setTime(0.2);
   for (const m of r.mats){ m.color.setHex(0x9a9a86); m.emissive.setHex(0); }
@@ -1093,7 +1094,7 @@ function loadBelt(){ const b = W.carrying; if (!b) return; W.carrying = null; W.
 // the store feeds the belt by itself, but the belt is only strong enough for ONE rat at a time: the next leaves when the last one lands.
 // A big haul queues up in the store (where rats can raid it), so carrying rats home by hand is still worth it
 function updOutpost(dt, t){
-  updL2(dt, t); updL3(dt, t); updFreePlay(dt); updStream(dt); updNet(dt);
+  updL2(dt, t); updL3(dt, t); updFreePlay(dt); updStream(dt); updNet(dt); updGhosts(dt);
   if (OUT.deployed && OUT.path && OUT.path.length && OUT.store.length && !OUT.riders.length){ const b = OUT.store.shift(); b.riding = {s:0}; OUT.riders.push(b); tut.loaded = (tut.loaded || 0) + 1; layoutStore(); }
   if (OUT.siteRing){ OUT.siteRing.material.opacity = 0.5 + 0.4 * Math.sin(t * 4); }
   if (OUT.pad) OUT.pad.material.opacity = 0.45 + 0.35 * Math.sin(t * 4);
@@ -1293,7 +1294,7 @@ function updFreePlay(dt){
   if (FP.spawnLeft > 0){ FP.spawnT -= dt; if (FP.spawnT <= 0){ FP.spawnT = 0.6; FP.spawnLeft--; spawnRat(new THREE.Vector3(rnd(-12, 12), 0, -68), true); const r = rats[rats.length - 1]; r.rush = true; r.storm = true; r.hp = r.maxHp = r.hpPer = FP.spawnHp; } }
   if (FP.cycleT <= 0){ FP.cycleT = d.cycle; produce(); } else drawClock('00:' + String(Math.max(0, Math.ceil(FP.cycleT))).padStart(2, '0').slice(-2));
   // grazing rats to harvest, spread over the field
-  FP.grazeT -= dt; if (FP.grazeT <= 0){ FP.grazeT = 3; if (rats.filter(r => r.graze && !r.rush).length < d.grazers){ const z = rnd(-64, -6), x = rnd(-15, 15); if (Math.hypot(x - OUT_SITE.x, z - OUT_SITE.z) > 7) spawnGrazer(new THREE.Vector3(x, 0, z)); } }
+  FP.grazeT -= dt; if (FP.grazeT <= 0){ FP.grazeT = 3; if (rats.filter(r => r.graze && !r.rush).length < Math.min(24, d.grazers + Math.ceil(NET.players.size * 0.6))){ const z = rnd(-64, -6), x = rnd(-15, 15); if (Math.hypot(x - OUT_SITE.x, z - OUT_SITE.z) > 7) spawnGrazer(new THREE.Vector3(x, 0, z)); } }
   // storming rats damage what they reach
   const tgt = stormTarget();
   for (const r of rats){ if (!r.storm || r.dead) continue; const p = r.root.position;
@@ -1303,7 +1304,7 @@ function updFreePlay(dt){
   if (FP.hall <= 0){ FP.hall = 0; FP.lost = true; return; }
   // bot mice fetch bodies the towers and you leave in the field
   for (const b of MICE){ if (b.state !== 'idle' || b.path.length) continue;
-    let best = null, bd = 34; for (const c of bodies){ if (c.carried || c.trapped || c.fallen || c.riding || c.flying) continue; const q = c.root.position; const dd = Math.hypot(q.x - PILE.x, q.z - PILE.z); if (dd < bd && !rats.some(r => r.root.position.distanceTo(q) < 5) && !MICE.some(m => m.target === c)){ bd = dd; best = c; } }
+    let best = null, bd = 34; for (const c of bodies){ if (c.carried || c.trapped || c.fallen || c.riding || c.flying) continue; const q = c.root.position; if (NET.players.size && ((time - (c.diedAt || -99)) < 10 || [...NET.players.values()].some(p => !p.dead && p.bot.root.position.distanceTo(q) < 8))) continue; const dd = Math.hypot(q.x - PILE.x, q.z - PILE.z); if (dd < bd && !rats.some(r => r.root.position.distanceTo(q) < 5) && !MICE.some(m => m.target === c)){ bd = dd; best = c; } }
     if (best){ b.target = best; b.state = 'fetch'; } else if (b.root.position.distanceTo(b.home) > 1) b.path = [b.home.clone()]; }
   // the ballot
   const onPad = Math.hypot(wp.x - VOTE_AT.x, wp.z - VOTE_AT.z) < 0.9;
@@ -1332,6 +1333,7 @@ function dressSeats(){ const seats = STREAM.seats || []; for (let k = 0; k < sea
     if (!b.hat){ b.hat = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.34, 8), toon(r[2])); b.hat.position.y = 0.78; b.root.add(b.hat); b.root.scale.setScalar(1.3); } } }
 function citBody(c){   // give a citizen a mouse in town, if there is room (the top 5 live in the helper seats instead)
   if (c.role >= 0 && STREAM.seats && STREAM.seats.length) return;
+  if (c.plat === 'web') return;
   if (c.bot || c.outcast || [...STREAM.cit.values()].filter(x => x.bot).length >= STREAM.cfg.maxBodies) return;
   const k = STREAM.order.indexOf(c.key), at = new THREE.Vector3(PILE.x - 3 + (k % 8) * 0.9, 0, PILE.z + 2.4 + Math.floor(k / 8) * 0.9);
   const b = makeMouseBot(at); b.home = at.clone(); b.carryK = 1.6; b.cit = c; c.bot = b; c.tag = tagSprite(c.name); b.root.add(c.tag); dressCit(c); }
@@ -1369,7 +1371,8 @@ const ZB = window.ZB = {
   start(diff){ if (diff) SET.diff = diff; startStage(STAGES.findIndex(x => x.free)); helpEl.style.display = 'none'; if (paused) togglePause(true);
     STREAM.nextVote = STREAM.cfg.voteEvery; STREAM.saving = null; for (const c of STREAM.cit.values()){ c.bot = null; c.hat = null; if (!c.outcast) citBody(c); } rankRoles(); dressSeats(); },
   goLive(pw){ netConnect(pw); glog('host go live'); }, takeLog(){ return GLOG.splice(0); },
-  endGame(){ netSend({t:'bcast', m:{t:'ended'}}); setTimeout(() => { NET.status = 'offline'; NET.on = false; if (NET.ws) try { NET.ws.onclose = null; NET.ws.close(); } catch(e){} for (const id of [...NET.players.keys()]) removePlayer(id); }, 400); },
+  endGame(){ netSend({t:'bcast', m:{t:'ended'}}); setTimeout(() => { NET.status = 'offline'; NET.on = false; if (NET.ws) try { NET.ws.onclose = null; NET.ws.close(); } catch(e){} for (const id of [...NET.players.keys()]) removePlayer(id); syncGhosts([]); }, 400); },
+  goOffline(){ ZB.endGame(); glog('host went offline'); },
   pause(on){ if (on !== paused) togglePause(true); }, net(){ return {status:NET.status, players:[...NET.players.values()].map(p => ({name:p.name, kind:p.kind, pts:p.pts, sqT:Math.ceil(p.sqT)})), timers:NET.timers}; },
   kickPlayer(name){ for (const p of NET.players.values()) if (p.name === name) netSend({t:'kick', id:p.id}); },
   setCfg(o){ Object.assign(STREAM.cfg, o); for (const k of ['maxPlayers','maxSq','potionAt','sqStart','sqPerKill','sqCap']) if (o[k] != null){ NET.cfg[k] = +o[k]; if (k === 'maxPlayers') netSend({t:'cfg', max:NET.cfg.maxPlayers}); } if (o.diff){ SET.diff = o.diff; applyDiff(); } },
@@ -1393,7 +1396,7 @@ function updStream(dt){ STREAM.fps = (STREAM.fps || 60) * 0.98 + (1 / Math.max(d
 // become a squirrel (3 at a time). Once all 3 squirrel slots are taken, every squirrel runs on a timer: 60 s, +5 s a kill, 3 min cap.
 // The highest-scoring mouse that has earned a potion is next in the queue. Points and ranks go privately to each player ----------
 const NET = {ws:null, on:false, status:'offline', players:new Map(), timers:false, sendT:0, meT:0, worldT:0,
-  cfg:{maxPlayers:10, maxSq:3, potionAt:10, sqStart:60, sqPerKill:5, sqCap:180}};
+  cfg:{maxPlayers:10, maxSq:3, potionAt:5, sqStart:60, sqPerKill:5, sqCap:180}};
 function makeSquirrelRig(){ const m = SkeletonUtils.clone(wGltf.scene); const mixer = new THREE.AnimationMixer(m), A = {};
   for (const k of ['idle','walk','run','carry']){ A[k] = mixer.clipAction(wc[k]); A[k].play(); A[k].setEffectiveWeight(0); } A.idle.setEffectiveWeight(1); return {model:m, mixer, A}; }
 function setPlayerKind(p, kind){ const b = p.bot; if (p.kind === kind && b.model) return; p.kind = kind;
@@ -1410,7 +1413,7 @@ function removePlayer(id){ const p = NET.players.get(id); if (!p) return; glog(`
 function updPlayer(b, dt){ const p = b.player; if (!p) return; const sq = p.kind === 'squirrel';
   let mx = p.in.mx, my = p.in.my; const l = Math.hypot(mx, my); if (l > 1){ mx /= l; my /= l; }
   const sp = b.body ? (sq ? 2.4 : 2.0) / Math.max(1, b.body.size * 0.6) : (sq ? 4.4 : 3.4), moving = l > 0.12, pos = b.root.position;
-  if (p.dead){ p.deadT -= dt; botAnim(b, 'idle'); b.mixer.update(dt); if (p.deadT <= 0 && respawnMouseAtTent(b)){ p.dead = false; p.hp = p.maxHp; if (p.kind === 'squirrel'){ setPlayerKind(p, 'mouse'); p.since = 0; } } return; }
+  if (p.dead){ p.deadT -= dt; botAnim(b, 'idle'); b.mixer.update(dt); if (p.deadT <= 0 && (respawnMouseAtTent(b) || (p.deadT < -10 && respawnMouseAtTent(b, true)))){ p.dead = false; p.hp = p.maxHp; if (p.kind === 'squirrel'){ setPlayerKind(p, 'mouse'); p.since = 0; } } return; }
   if (moving){ const ws = wireAt(pos, 0, 'wire') ? 0.5 : 1; pos.x += mx * sp * ws * dt; pos.z += my * sp * ws * dt; pos.x = THREE.MathUtils.clamp(pos.x, BOUNDS.x0, BOUNDS.x1); pos.z = THREE.MathUtils.clamp(pos.z, BOUNDS.z0, BOUNDS.z1); collide(pos, 0.3); collideBags(pos, 0.3); collideTraps(pos, 0.3); collideTurrets(pos, 0.3);
     const f = Math.atan2(mx, my); let a = f - b.face; a = Math.atan2(Math.sin(a), Math.cos(a)); b.face += a * Math.min(1, dt * 12); p.stillT = 0; }
   else p.stillT += dt;
@@ -1423,6 +1426,17 @@ function updPlayer(b, dt){ const p = b.player; if (!p) return; const sq = p.kind
       if (best){ p.cd = 1.1; const from = pos.clone().setY(0.9), dir = best.root.position.clone().setY(0.5).sub(from).normalize(); b.face = Math.atan2(dir.x, dir.z); fireFrom(from.addScaledVector(dir, 0.6), dir, 'player', p); } } }
   botAnim(b, b.body ? 'carry' : moving ? 'run' : 'idle', b.body ? (moving ? 0.9 : 0) : 1); b.root.rotation.y = b.face; b.mixer.update(dt); }
 
+
+const GHOSTS = new Map();   // id -> {id, name, root, in, since}
+function ghostMesh(name){ const r = makeRat(); r.root.traverse(o => { if (o.isMesh){ o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.45; o.material.color.setHex(0xb8e0ff); o.material.userData.outlineParameters = {visible:false}; } });
+  r.root.scale.setScalar(RAT_SCALE * 1.05); setRatAnim(r, 'walk', 1); r.bar.visible = false; const tag = tagSprite('👻 ' + name, '#b8e0ff'); tag.position.y = 1.1; r.root.add(tag); return r; }
+function syncGhosts(waiting){ const keep = new Set();
+  for (const w of waiting || []){ keep.add(w.id); if (!GHOSTS.has(w.id)){ const g = ghostMesh(w.name); g.root.position.set(rnd(-10, 10), 0, rnd(-30, -12)); GHOSTS.set(w.id, {id:w.id, name:w.name, r:g, in:{mx:0, my:0}, lured:0, since:Date.now()}); glog('ghost join ' + w.name); } }
+  for (const [id, g] of GHOSTS) if (!keep.has(id)){ scene.remove(g.r.root); scene.remove(g.r.bar); GHOSTS.delete(id); } }
+function updGhosts(dt){ for (const g of GHOSTS.values()){ const p = g.r.root.position, l = Math.hypot(g.in.mx, g.in.my);
+    if (l > 0.12){ const k = 1 / Math.max(1, l); p.x = THREE.MathUtils.clamp(p.x + g.in.mx * k * 4.2 * dt, BOUNDS.x0, BOUNDS.x1); p.z = THREE.MathUtils.clamp(p.z + g.in.my * k * 4.2 * dt, BOUNDS.z0, TOWN.z0 - 1); g.r.root.rotation.y = Math.atan2(g.in.mx, g.in.my); }
+    g.r.mixer.update(dt * (l > 0.12 ? 1 : 0.2)); } }
+function ghostLure(r, rp){ if (!GHOSTS.size || r.rush || r.storm) return null; let best = null, bd = 6; for (const g of GHOSTS.values()){ const d = rp.distanceTo(g.r.root.position); if (d < bd){ bd = d; best = g; } } if (best && !r.lureBy){ r.lureBy = best.id; best.lured++; } return best ? best.r.root.position : null; }
 function livePrey(){ const out = []; if (!W.dead) out.push({pos:W.root.position}); for (const p of NET.players.values()) if (!p.dead) out.push({pos:p.bot.root.position, p});
   for (const b of MICE) if (b.state !== 'player' && b.state !== 'dead' && b.state !== 'help' && b.root.visible) out.push({pos:b.root.position, bot:b}); return out; }
 // a mouse the rats catch dies where it stands: its body is worth 3 rats to a hungry rat, or 2 respawns if carried to the med tent.
@@ -1435,7 +1449,7 @@ function makeFallenMouse(at, face){ const m = SkeletonUtils.clone(mGltf.scene); 
   const b = {root, model:m, mixer:new THREE.AnimationMixer(m), mark, fallen:true, mouse:true, size:FALLEN_FOOD, spd:2.6, deathT:1, mats:[], dead:true}; bodies.push(b); return b; }
 function mouseDies(b, name){ if (b.body){ const bd = b.body; b.body = null; b.root.remove(bd.root); bd.carried = false; bd.root.position.copy(b.root.position); bd.root.rotation.set(0, 0, Math.PI/2); scene.add(bd.root); }
   makeFallenMouse(b.root.position, b.face); b.root.visible = false; burst(b.root.position.clone().setY(0.5), 0x9a3a2a, 14, 3, 3); sfx.squeak(); toast(`🐭 ${name || 'A mouse'} was killed by the rats!`); }
-function respawnMouseAtTent(b){ if (RESP.on){ if (RESP.n <= 0) return false; setResp(RESP.n - 1); } b.root.position.set(TENT.x - 1.4 + rnd(-0.5, 0.5), 0, TENT.z + rnd(-0.6, 0.6)); b.root.visible = true; return true; }
+function respawnMouseAtTent(b, free){ if (RESP.on && !free){ if (RESP.n <= 0) return false; setResp(RESP.n - 1); } b.root.position.set(TENT.x - 1.4 + rnd(-0.5, 0.5), 0, TENT.z + rnd(-0.6, 0.6)); b.root.visible = true; return true; }
 function hurtBot(b, dmg){ b.hp = (b.hp === undefined ? 40 : b.hp) - dmg; if (b.hp > 0) return; b.hp = 40; const nm = b.cit ? b.cit.name : b.label ? b.label.split(' · ')[1] : null;
   mouseDies(b, nm && nm !== '(vacant)' ? nm : null); b.state = 'dead'; b.deadT = 8; b.target = null; b.lead = null; b.path = []; }
 function hurtPlayer(p, dmg){ if (p.dead) return; p.hp -= dmg; p.hurtT = time;
@@ -1455,6 +1469,7 @@ function netSnap(){ const mice = MICE.filter(b => b.state !== 'player');
     m:mice.map(b => [r2(b.root.position.x), r2(b.root.position.z), r2(b.face), b.body ? 1 : 0, b.cur === 'idle' ? 0 : 1]),
     r:rats.filter(r => !r.dead).map(r => [r2(r.root.position.x), r2(r.root.position.z), r2(r.face || r.root.rotation.y), Math.round(r.size * 10) / 10]),
     b:bodies.filter(c => !c.carried && !c.flying).map(c => [r2(c.root.position.x), r2(c.root.position.z), Math.round(c.size), c.mouse ? 1 : c.fallen ? 2 : 0]),
+    g:[...GHOSTS.values()].map(g => [g.id, r2(g.r.root.position.x), r2(g.r.root.position.z), r2(g.r.root.rotation.y), g.name]),
     pile:pile.length, wave:FP.wave, hall:Math.ceil(FP.hall || 0), paused:paused ? 1 : 0, vote:STREAM.window ? Math.ceil(STREAM.window.t) : 0, tally:STREAM.window ? ZB.tally() : null}) + '}'; }
 function netWorld(){ return {t:'world', wires:WIRES.map(w => [w.kind, w.sqs.map(q => [q.i, q.j])]), out:L3.on ? 3 : L2.on ? 2 : OUT.deployed ? 1 : 0,
     seats:(STREAM.seats || []).map(b => b.label || ''), opts:FP_OPTS.map((o, i) => ({i:i + 1, k:o.k, n:o.n, icon:o.icon}))}; }
@@ -1471,7 +1486,9 @@ function netConnect(pw){ if (NET.ws) try { NET.ws.onclose = null; NET.ws.close()
     if (m.t === 'hostok'){ NET.on = true; NET.status = 'live'; netSend({t:'cfg', max:NET.cfg.maxPlayers}); for (const pl of m.players || []) addPlayer(pl.id, pl.name); toast('🔴 Live: website players can join'); }
     else if (m.t === 'hostbad'){ NET.status = 'wrong password'; }
     else if (m.t === 'kicked'){ NET.on = false; NET.status = 'another host tab took over'; }
-    else if (m.t === 'vjoin') addPlayer(m.id, m.name);
+    else if (m.t === 'vjoin'){ addPlayer(m.id, m.name); syncGhosts((m.waiting) || [...GHOSTS.values()].filter(g => g.id !== m.id).map(g => ({id:g.id, name:g.name}))); }
+    else if (m.t === 'lobby'){ syncGhosts(m.waiting); }
+    else if (m.t === 'gin'){ const g = GHOSTS.get(m.id); if (g){ g.in.mx = +m.mx || 0; g.in.my = +m.my || 0; } }
     else if (m.t === 'vlog'){ const p = NET.players.get(m.id); glog(`viewer ${p ? p.name : m.id}: ${String(m.m).slice(0, 300)}`); }
     else if (m.t === 'vleave') removePlayer(m.id);
     else if (m.t === 'in'){ const p = NET.players.get(m.id); if (p){ p.in.mx = +m.mx || 0; p.in.my = +m.my || 0; } }
@@ -1527,12 +1544,16 @@ function vwTick(dt){
     const mv = Math.hypot(x - p.last[0], z - p.last[1]) > 0.01; p.last = [x, z];
     vwLerp(b.root.position, x, z, dt * 0.8); b.face = vwAngle(b.face, f, dt); b.root.rotation.y = b.face; botAnim(b, c ? 'carry' : mv ? 'run' : 'idle', c && !mv ? 0 : 1); b.mixer.update(dt); }
   for (const [id, p] of VIEWER.players) if (!seen.has(id)){ scene.remove(p.bot.root); VIEWER.players.delete(id); }
+  VIEWER.ghosts = VIEWER.ghosts || new Map(); const gseen = new Set();
+  for (const [id, x, z, f, name] of S2.g || []){ gseen.add(id); let g = VIEWER.ghosts.get(id); if (!g){ g = ghostMesh((id === VIEWER.id ? '★ ' : '') + name); g.root.position.set(x, 0, z); VIEWER.ghosts.set(id, g); }
+    vwLerp(g.root.position, x, z, dt); g.root.rotation.y = vwAngle(g.root.rotation.y, f, dt); g.mixer.update(dt); }
+  for (const [id, g] of VIEWER.ghosts) if (!gseen.has(id)){ scene.remove(g.root); scene.remove(g.bar); VIEWER.ghosts.delete(id); }
   vwVote(S2); pauseEl.style.display = S2.paused && !(S2.vote > 0) ? 'flex' : 'none';
   // corpse pile mound
   while (pile.length < S2.pile) pile.push({root:new THREE.Group()}); pile.length = Math.min(pile.length, S2.pile); updMound();
   VIEWER.pileB = VIEWER.pileB || []; vwPool(VIEWER.pileB, Math.min(S2.pile, PILE_CAP || 30), vwBody); VIEWER.pileB.forEach((c, i) => { if (!c.root.visible) return; if (c.slot !== i){ c.slot = i; const pl = pileSlot(i), sl = pl.userData; c.root.position.copy(pl); c.root.rotation.set(sl.tilt || 0, sl.ry || 0, Math.PI/2); } });
   // camera follows you (or weaselwonder while you wait)
-  const mine = VIEWER.players.get(VIEWER.id), tgt = mine ? mine.bot.root.position : W.root.position, z = 1 + VIEWER.zoom * 0.8;
+  const mine = VIEWER.players.get(VIEWER.id), myGhost = VIEWER.ghosts && VIEWER.ghosts.get(VIEWER.id), tgt = mine ? mine.bot.root.position : myGhost ? myGhost.root.position : W.root.position, z = 1 + VIEWER.zoom * 0.8;
   camera.position.lerp(new THREE.Vector3(tgt.x, 17 * z, tgt.z + 8 * z), Math.min(1, dt * 6)); camera.lookAt(camera.position.x, 0, camera.position.z - 8 * z);
   // input: WASD / arrows / left thumb, sent 10 times a second
   let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), my = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
@@ -1557,6 +1578,18 @@ function vwVote(S2){ const open = S2.vote > 0 && VIEWER.status === 'playing'; vo
   voteEl.querySelectorAll('button').forEach(bt => { const go2 = ev => { ev.preventDefault(); ev.stopPropagation(); VIEWER.myVote = +bt.dataset.v; vwSend({t:'act', a:'v' + bt.dataset.v}); VIEWER.voteKey = ''; }; bt.addEventListener('click', go2); bt.addEventListener('touchend', go2); }); }
 addEventListener('keydown', e => { if (VIEWER.on && voteEl.style.display === 'block' && /^[1-5]$/.test(e.key)){ VIEWER.myVote = +e.key; vwSend({t:'act', a:'v' + e.key}); VIEWER.voteKey = ''; } });
 addEventListener('error', e => { if (VIEWER.on){ const t = Date.now(); if (t - (VIEWER.errT || 0) > 5000){ VIEWER.errT = t; vwSend({t:'log', m:(e.message || 'error') + ' @' + (e.lineno || '') + ' ' + navigator.userAgent.slice(0, 80)}); } } });
+// player menu (☰ top right): leave the game, instructions, sound
+const menuBtn = document.createElement('button'); menuBtn.textContent = '☰'; menuBtn.style.cssText = 'position:fixed;right:10px;top:10px;z-index:11;width:46px;height:46px;border-radius:12px;border:2px solid #e8c37a;background:#1d1813ee;color:#e8c37a;font:900 24px system-ui;display:none;cursor:pointer';
+const menuEl = document.createElement('div'); menuEl.style.cssText = 'position:fixed;right:10px;top:64px;z-index:11;width:230px;background:#1d1813f4;border:3px solid #e8c37a;border-radius:14px;padding:8px;display:none;font:800 16px system-ui';
+menuEl.innerHTML = ['<button data-a="help">📖 How to play</button>', '<button data-a="sound">🔊 Sound on / off</button>', '<button data-a="leave" style="color:#ff9a8a">🚪 Leave the game</button>'].join('');
+document.body.append(menuBtn, menuEl); menuEl.querySelectorAll('button').forEach(b => b.style.cssText = 'display:block;width:100%;text-align:left;margin:4px 0;padding:10px;border-radius:10px;border:2px solid #3a3025;background:#2a221a;color:inherit;font:inherit;cursor:pointer;color:#f3ead8');
+menuEl.querySelector('[data-a=leave]').style.color = '#ff9a8a';
+const stopT = e => e.stopPropagation(); for (const el of [menuBtn, menuEl]){ el.addEventListener('touchstart', stopT, {passive:true}); el.addEventListener('touchend', stopT); }
+menuBtn.onclick = e => { e.stopPropagation(); menuEl.style.display = menuEl.style.display === 'block' ? 'none' : 'block'; };
+menuEl.onclick = e => { e.stopPropagation(); const a = e.target.closest('button') && e.target.closest('button').dataset.a; if (!a) return; menuEl.style.display = 'none';
+  if (a === 'leave'){ if (!confirm('Leave the game and go back to the lobby?')) return; vwSend({t:'leave'}); if (VIEWER.ws){ VIEWER.ws.onclose = null; setTimeout(() => { try { VIEWER.ws.close(); } catch(e2){} location.href = '/'; }, 250); } else location.href = '/'; }
+  else if (a === 'help'){ VIEWER.fold = false; vwHud(); }
+  else if (a === 'sound'){ VIEWER.mute = !VIEWER.mute; try { actx && (VIEWER.mute ? actx.suspend() : actx.resume()); } catch(e2){} toast(VIEWER.mute ? 'Sound off' : 'Sound on'); } };
 function vwSend(o){ if (VIEWER.ws && VIEWER.ws.readyState === 1) VIEWER.ws.send(JSON.stringify(o)); }
 const meEl = document.createElement('div'); meEl.id = 'me';
 meEl.style.cssText = 'pointer-events:auto;cursor:pointer;position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:7;min-width:300px;max-width:94vw;background:#1d1813ee;border:3px solid #e8c37a;border-radius:16px;padding:8px 14px;color:#f3ead8;font:700 15px system-ui;text-align:center;display:none';
@@ -1564,10 +1597,10 @@ document.body.appendChild(meEl); VIEWER.fold = (()=>{ try { return localStorage.
 meEl.addEventListener('click', e => { e.stopPropagation(); VIEWER.fold = !VIEWER.fold; try { localStorage.setItem('zb_fold', VIEWER.fold ? '1' : '0'); } catch(e2){} vwHud(); }); meEl.addEventListener('touchstart', e => e.stopPropagation(), {passive:true}); meEl.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); VIEWER.fold = !VIEWER.fold; try { localStorage.setItem('zb_fold', VIEWER.fold ? '1' : '0'); } catch(e2){} vwHud(); });
 function vwHud(){ const m = VIEWER.me, st = VIEWER.status;
   if (st === 'playing' && !m){ meEl.innerHTML = '<b style="color:#e8c37a">You are in!</b><br>Waiting for weaselwonder\'s town to start…'; return; }
-  if (st !== 'playing' || !m){ meEl.innerHTML = st === 'waiting' ? '<b style="color:#e8c37a">The squad is full</b><br>You are in the queue and watching live. You join when a slot opens.' : st === 'offline' ? '<b style="color:#e8c37a">Weasel is offline</b><br>Come back when the stream is live, or play the tutorial at weaselwonder.com' : st || 'Connecting…'; return; }
+  if (st !== 'playing' || !m){ meEl.innerHTML = st === 'waiting' ? `<b style="color:#b8e0ff">👻 You are a ghost rat</b> · queue #${VIEWER.queuePos || '?'} of ${VIEWER.queueOf || '?'}<br><span style="font-size:13px;color:#cfc3ab">All mouse slots are taken. Drag to float around: real rats follow ghosts, so lure them into towers, traps and the squirrel's crossbow! You become a mouse when a slot opens (longest wait goes first).</span>` : st === 'offline' ? '<b style="color:#e8c37a">Weasel is offline</b><br>Come back when the stream is live, or play the tutorial at weaselwonder.com' : st || 'Connecting…'; return; }
   const sq = m.kind === 'squirrel', pc = Math.min(100, Math.round(m.since / m.need * 100));
   const sum = `<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><span>${sq ? '🐿️' : '🐭'} ⭐ ${m.pts} pts · #${m.rank} of ${m.of}${sq ? (m.sqLeft >= 0 ? ` · ⏱ ${m.sqLeft}s` : '') : ` · 🧪 ${m.since}/${m.need}`}${m.hp < 100 ? ` · ❤️ ${m.hp}%` : ''}</span><span style="color:#e8c37a;font-size:13px">${VIEWER.fold ? 'Instructions ▴' : 'Hide ▾'}</span></div>`;
-  if (m.dead){ meEl.innerHTML = sum + '<div style="margin-top:4px;color:#ff9a8a">The rats got you! Back at the pile in a few seconds.</div>'; return; }
+  if (m.dead){ meEl.innerHTML = sum + '<div style="margin-top:4px;color:#ff9a8a">The rats got you! You come back at the med tent in a few seconds (longer if the town is out of respawns).</div>'; return; }
   if (VIEWER.fold){ meEl.innerHTML = sum; return; }
   meEl.innerHTML = sum + `<div style="font:900 12px system-ui;letter-spacing:.14em;color:#e8c37a;margin-top:6px">INSTRUCTIONS</div>` +
     (sq ? `<div style="margin-top:2px">${m.sqLeft >= 0 ? `Squirrel time left: <b style="color:#ffe08a">${m.sqLeft}s</b> (+5 s a kill)` : `Squirrel slots ${m.sq}/${m.maxSq}: no timer until all are taken`}. You shoot rats by yourself.</div>`
@@ -1575,11 +1608,11 @@ function vwHud(){ const m = VIEWER.me, st = VIEWER.status;
     `<div style="font-size:13px;color:#cfc3ab;margin-top:4px;text-align:left">• <b>Drag anywhere</b> on the screen (or WASD) to move<br>• <b>Stand still</b> on a dead rat to pick it up<br>• <b>Stand still</b> by the corpse pile to drop it in<br>• <b>Tap</b> (or Q) to let go · rats will chase you!</div>`; }
 function vwConnect(name){
   let cid = ''; try { cid = localStorage.getItem('zb_cid') || ''; if (!cid){ cid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('zb_cid', cid); } } catch(e){}
-  const ws = VIEWER.ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); VIEWER.status = 'Connecting…'; meEl.style.display = 'block'; vwHud();
+  const ws = VIEWER.ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); VIEWER.status = 'Connecting…'; meEl.style.display = 'block'; menuBtn.style.display = 'block'; vwHud();
   ws.onopen = () => ws.send(JSON.stringify({t:'join', name, cid}));
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch(err){ return; }
     if (m.t === 'snap'){ VIEWER.snap = m.s; return; }
-    if (m.t === 'lobby'){ if (!m.host && VIEWER.status !== 'playing') { VIEWER.status = 'offline'; vwHud(); }
+    if (m.t === 'lobby'){ VIEWER.queuePos = (m.waiting || []).findIndex(w => w.id === VIEWER.id) + 1; VIEWER.queueOf = (m.waiting || []).length; if (!m.host && VIEWER.status !== 'playing') { VIEWER.status = 'offline'; vwHud(); }
       if (!m.host && VIEWER.status === 'playing'){ VIEWER.goneT = VIEWER.goneT || Date.now(); if (Date.now() - VIEWER.goneT > 20000){ pauseEl.style.display = 'flex'; pauseEl.innerHTML = '📴 Weasel went offline<small style="font:700 16px system-ui;color:#f3ead8;margin-top:8px">Back to the start…</small>'; setTimeout(() => location.href = '/', 3000); } } else VIEWER.goneT = 0; return; }
     if (m.t === 'welcome'){ VIEWER.id = m.id; VIEWER.status = m.status; vwHud(); try { localStorage.setItem('zb_name', m.name); } catch(e2){} }
     else if (m.t === 'promoted'){ VIEWER.status = 'playing'; toast('You are in! Collect rats for the town'); }
@@ -2266,6 +2299,7 @@ function townWall(r, rp, dt){   // returns true while the rat is gnawing the fen
   if (rp.x <= x0 || rp.x >= x1 || rp.z <= z0 || rp.z >= z1) return false;
   const dl = rp.x - x0, dr = x1 - rp.x, dt2 = rp.z - z0, db = z1 - rp.z, m = Math.min(dl, dr, dt2, db);
   if (m === dl) rp.x = x0; else if (m === dr) rp.x = x1; else if (m === dt2) rp.z = z0; else rp.z = z1;
+  if (!(r.storm || r.rush)) return false;
   FP.hall -= CHEW * r.size * dt; FP.wallHit = time; FP.wallAt = rp.clone();
   if (Math.random() < dt * 1.5) burst(rp.clone().setY(0.5), 0x8a857c, 2, 1.2, 1.2); return true; }
 function nearTownWall(p){ const dx = Math.min(Math.abs(p.x - TOWN.x0), Math.abs(p.x - TOWN.x1)), dz = Math.min(Math.abs(p.z - TOWN.z0), Math.abs(p.z - TOWN.z1));
@@ -3411,7 +3445,7 @@ function update(dt){
   for (const r of [...rats]){
     const rp = r.root.position;
     let tgt = null, mode = 'walk';
-    let prey = null, dW = 999; for (const q of PREY){ const d = rp.distanceTo(q.pos); if (d < dW){ dW = d; prey = q; } }
+    let prey = null, dW = 999; for (const q of PREY){ const d = rp.distanceTo(q.pos); if ((q.p || q.bot) && !r.rush && d > 4) continue; if (d < dW){ dW = d; prey = q; } }
     const wq = prey ? prey.pos : wp;
     let food = null;
     if (r.rush && stg().eatDead){
@@ -3431,6 +3465,7 @@ function update(dt){
       else if (best < 1e9){ tgt = wq; mode = 'run'; }
     }
     if (r.route && r.route.length){ if (Math.hypot(r.route[0].x - rp.x, r.route[0].z - rp.z) < 0.7) r.route.shift(); if (r.route.length){ tgt = r.route[0]; mode = 'run'; food = null; } }
+    if (!tgt){ const gl = ghostLure(r, rp); if (gl){ tgt = gl; mode = 'walk'; } }
     if (tgt) {}
     else {
       // passive rats forage where they are: they never head for town on their own (in the live game, ghost rats lure them in)
@@ -3571,7 +3606,7 @@ let last = performance.now();
 function frame(now){
   const dt = Math.min(0.05, (now - last)/1000); last = now;
   if (VIEWER.on){ if (started) vwTick(dt); } else if (started && !paused && !STREAM.freeze) update(dt); else if (paused && NET.on){ NET.sendT -= dt; if (NET.sendT <= 0){ NET.sendT = 0.25; netSend(netSnap()); } } else if (STREAM.freeze){ STREAM.orbit(dt); if (STREAM.window){ STREAM.window.t -= dt; if (STREAM.window.t <= 0) ZB.closeVote(); } if (NET.on){ NET.sendT -= dt; if (NET.sendT <= 0){ NET.sendT = 0.25; netSend(netSnap()); } } for (const b of MICE) b.mixer.update(dt); } else if (paused) {} else { W.mixer.update(dt); blendWeights(dt); camPos.set(0,13,15); camera.position.copy(camPos); camera.lookAt(0,0,6); }
-  if (LITE) renderer.render(scene, camera); else effect.render(scene, camera);
+  if (NORENDER){} else if (LITE) renderer.render(scene, camera); else effect.render(scene, camera);
   requestAnimationFrame(frame);
 }
 addEventListener('resize', ()=>{ renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); });
@@ -3595,7 +3630,7 @@ if (VIEWER.on){ document.body.classList.add('stream'); const st = document.creat
 if (STREAM.on){ document.body.classList.add('stream'); const st = document.createElement('style'); st.textContent = 'body.stream #tut, body.stream #btns, body.stream .stick, body.stream #help, body.stream #hint{display:none!important} body.stream #overlay h1{font-size:40px}'; document.head.appendChild(st);
   go.onclick = ()=>{ try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} document.getElementById('overlay').style.display = 'none'; started = true; last = performance.now(); ZB.start(); VIEW.zoom = VIEW.zoomWant = 0.55; };
   window.parent && window.parent.postMessage({zb:'ready'}, '*'); }
-window.__log=[]; window.__zb = { VIEWER, NET, addPlayer, ZB, STREAM, spawnGrazer, FP, DIFFS, applyDiff, produce, VOTE_AT, HALL_AT, castVote, openBallot, SET, breakBelt, pathNearest, L3, END_ZONE, hopperPos, outputPos, factoryPos, L2, deployL2, queueItem, itemPadPos, DOCK_AT, padSlotPos, lineDone, COILS_:null, addCoil, sign, belt, toon, makeRat, MODELS, BELTS, TOWN, ROADS, GATES, OUT, OUT_SITE, storePos, loadPos, RESP, BELLS, ALERT, setAlert, PILE, XB_HAND, CLUB, handBone, findBone, scene, SQT, POTION, RIG:()=>RIG, MICE, carriers, turrets, TRAYS, startWave, bolts, toggleWeapon, BONES, allTraps, carrySpeed, drawn, startStage, STAGES, step:(n)=>{ for(let i=0;i<n;i++) update(1/60); }, tut, resetGame, togglePause, killRat, camera, W, rats, bodies, pile, T, THREE, layWire, toon, spawnRat, stockPile, GATES, CUT, XB_ITEM, VIEW, SET, BUILD, WIRES, COILS, sqOf, sqPos, start:()=>go.onclick(), keys, mouse};
+window.__log=[]; window.__zb = { GHOSTS, PILE, TENT, RESP, VIEWER, NET, addPlayer, ZB, STREAM, spawnGrazer, FP, DIFFS, applyDiff, produce, VOTE_AT, HALL_AT, castVote, openBallot, SET, breakBelt, pathNearest, L3, END_ZONE, hopperPos, outputPos, factoryPos, L2, deployL2, queueItem, itemPadPos, DOCK_AT, padSlotPos, lineDone, COILS_:null, addCoil, sign, belt, toon, makeRat, MODELS, BELTS, TOWN, ROADS, GATES, OUT, OUT_SITE, storePos, loadPos, RESP, BELLS, ALERT, setAlert, PILE, XB_HAND, CLUB, handBone, findBone, scene, SQT, POTION, RIG:()=>RIG, MICE, carriers, turrets, TRAYS, startWave, bolts, toggleWeapon, BONES, allTraps, carrySpeed, drawn, startStage, STAGES, step:(n)=>{ for(let i=0;i<n;i++) update(1/60); }, tut, resetGame, togglePause, killRat, camera, W, rats, bodies, pile, T, THREE, layWire, toon, spawnRat, stockPile, GATES, CUT, XB_ITEM, VIEW, SET, BUILD, WIRES, COILS, sqOf, sqPos, start:()=>go.onclick(), keys, mouse};
 </script>
 </body>
 </html>

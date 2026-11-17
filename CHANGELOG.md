@@ -55,3 +55,10 @@
 
 ## r15 · 2026-11-17
 - Player screens draw dead mice as fallen mice with a medic cross (they showed as giant dead rats).
+
+## r16 · 2026-11-17
+- Player menu (☰ top right on phones): Leave the game (back to the home page), How to play, Sound on/off.
+- Ghost rats: players beyond the mouse slots join as see-through "👻" rats, float around and lure grazing rats (into towers, traps, the crossbow). First come, first served: the longest-waiting ghost gets the next mouse slot.
+- Stream page: "Mouse slots (players who can level up)" setting; the Go live button becomes a red "Go offline" when live (players are told the game ended, the town keeps running); settings button shows ● LIVE / ○ offline.
+- Play-test fixes (local copy, 12 simulated players + phone): website players no longer get a second citizen mouse; helper mice leave fresh bodies (10 s) and bodies near players to the players; grazing rats only lunge at mice within 4 m; only wave rats damage the fence; a few more grazers per player; helper mice respawn free; players with no respawns left still come back after 15 s; potion now needs 5 rats (settings default, adjustable).
+- Network check: ~11 updates a second per player at about 1.3 KB each; host held ~60 fps with 10 players and 3 ghosts.
