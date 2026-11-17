@@ -24,3 +24,11 @@
 - Stream defaults: vote every 180 s for 45 s, Medium difficulty (website stays Easy). End vote button (or E) on the vote card.
 - Outcasts: only citizens who have held a top-5 title can be cast out for missing 3 votes.
 - Mobile: tap the left thumb to drop what you carry.
+
+## r11 · 2026-11-17 (step 5: website players)
+- Weasel goes live from the stream page: Settings (S) → Website players → host password → "Go live". The home page then shows live and the join box.
+- weaselwonder.com/play/ (and the home page join box): website players join as mice (10 slots, more queue and watch). Drag left side or WASD to move, stand still on a body to pick it up, stand still by the pile to drop it, tap left or Q to let go.
+- Each player sees only their own points, rank among players, potion progress and squirrel timer.
+- 10 rats to the pile earns a potion: the highest-scoring mouse with a potion becomes a squirrel (3 slots). Squirrels shoot rats by themselves. Once all 3 slots are full every squirrel runs on a timer: 60 s, +5 s per kill, 3 min cap; then back to a mouse.
+- All of it is adjustable live in Settings: max players, squirrel slots, rats per potion, squirrel timer numbers. Kick any website player from the list.
+- Server: host config (max players), private messages to one player, broadcasts, player actions. /play now serves the new player page; /weasel still serves the old r6 game.

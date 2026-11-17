@@ -952,6 +952,7 @@ function updMice(dt){
       const spd = MOUSE_CARRY * carriers(b) / (b.body ? b.body.size || 1 : 1) * (b.carryK || 1);
       if (b.path.length){ const d = botStep(b, b.path[0], spd, dt); b.spd = spd; if (d < 0.3) b.path.shift(); botAnim(b, 'carry', 0.9); }
       else { b.spd = 0; botAnim(b, 'carry', 0); b.dropT = (b.dropT || 0) + dt; if (b.dropT > 0.5){ botDrop(b); b.state = 'idle'; } }
+    } else if (b.state === 'player'){ updPlayer(b, dt); continue;
     } else if (b.state === 'fetch'){   // free play: fetch a body from the field and carry it to the corpse pile
       const t = b.target; if (!t || !bodies.includes(t) || t.carried || t.riding){ b.state = 'idle'; b.target = null; }
       else { const d = botStep(b, t.root.position, MOUSE_RUN * 0.65, dt); botAnim(b, 'run', 1); if (d < 0.5){ b.target = null; botGive(b, t); b.state = 'lead'; b.dropT = 0; b.path = homeRoute(b.root.position); } }
@@ -1090,7 +1091,7 @@ function loadBelt(){ const b = W.carrying; if (!b) return; W.carrying = null; W.
 // the store feeds the belt by itself, but the belt is only strong enough for ONE rat at a time: the next leaves when the last one lands.
 // A big haul queues up in the store (where rats can raid it), so carrying rats home by hand is still worth it
 function updOutpost(dt, t){
-  updL2(dt, t); updL3(dt, t); updFreePlay(dt); updStream(dt);
+  updL2(dt, t); updL3(dt, t); updFreePlay(dt); updStream(dt); updNet(dt);
   if (OUT.deployed && OUT.path && OUT.path.length && OUT.store.length && !OUT.riders.length){ const b = OUT.store.shift(); b.riding = {s:0}; OUT.riders.push(b); tut.loaded = (tut.loaded || 0) + 1; layoutStore(); }
   if (OUT.siteRing){ OUT.siteRing.material.opacity = 0.5 + 0.4 * Math.sin(t * 4); }
   if (OUT.pad) OUT.pad.material.opacity = 0.45 + 0.35 * Math.sin(t * 4);
@@ -1365,7 +1366,9 @@ const ZB = window.ZB = {
       crowd:activeCitizens(), cit:[...STREAM.cit.values()].map(c => ({everRole:c.everRole, name:c.name, plat:c.plat, pts:c.pts, role:c.role, missed:c.missed, outcast:c.outcast, vote:c.vote, body:!!c.bot}))}; },
   start(diff){ if (diff) SET.diff = diff; startStage(STAGES.findIndex(x => x.free)); helpEl.style.display = 'none'; if (paused) togglePause(true);
     STREAM.nextVote = STREAM.cfg.voteEvery; STREAM.saving = null; for (const c of STREAM.cit.values()){ c.bot = null; c.hat = null; if (!c.outcast) citBody(c); } rankRoles(); dressSeats(); },
-  setCfg(o){ Object.assign(STREAM.cfg, o); if (o.diff){ SET.diff = o.diff; applyDiff(); } },
+  goLive(pw){ netConnect(pw); }, net(){ return {status:NET.status, players:[...NET.players.values()].map(p => ({name:p.name, kind:p.kind, pts:p.pts, sqT:Math.ceil(p.sqT)})), timers:NET.timers}; },
+  kickPlayer(name){ for (const p of NET.players.values()) if (p.name === name) netSend({t:'kick', id:p.id}); },
+  setCfg(o){ Object.assign(STREAM.cfg, o); for (const k of ['maxPlayers','maxSq','potionAt','sqStart','sqPerKill','sqCap']) if (o[k] != null){ NET.cfg[k] = +o[k]; if (k === 'maxPlayers') netSend({t:'cfg', max:NET.cfg.maxPlayers}); } if (o.diff){ SET.diff = o.diff; applyDiff(); } },
 };
 function makeOutcast(c){ if (!c.bot && STREAM.seats && STREAM.seats.length){ c.role = -1; const at = (STREAM.seats[0] || W).root.position.clone(); const b = makeMouseBot(at); b.cit = c; c.bot = b; c.tag = tagSprite(c.name); b.root.add(c.tag); }
   c.outcast = true; c.role = -1; c.vote = null; toast(`🚪 ${c.name} missed ${STREAM.cfg.outcastAfter} votes and was cast out!`); setTimeout(rankRoles, 0);
@@ -1381,6 +1384,148 @@ function updStream(dt){
     if (rats.some(r => !r.dead && r.root.position.distanceTo(b.root.position) < 0.9 + 0.3 * vis(r.size))){
       burst(b.root.position.clone().setY(0.6), 0x9a3a2a, 16, 3, 3); sfx.squeak(); toast(`${c.name} was eaten by the rats`); scene.remove(b.root); MICE.splice(MICE.indexOf(b), 1); c.bot = null; } }
 }
+
+// ---------- LIVE PLAYERS (host side): website players join the stream game as mice. Carry 10 rats to the pile to earn a potion and
+// become a squirrel (3 at a time). Once all 3 squirrel slots are taken, every squirrel runs on a timer: 60 s, +5 s a kill, 3 min cap.
+// The highest-scoring mouse that has earned a potion is next in the queue. Points and ranks go privately to each player ----------
+const NET = {ws:null, on:false, status:'offline', players:new Map(), timers:false, sendT:0, meT:0, worldT:0,
+  cfg:{maxPlayers:10, maxSq:3, potionAt:10, sqStart:60, sqPerKill:5, sqCap:180}};
+function makeSquirrelRig(){ const m = SkeletonUtils.clone(wGltf.scene); const mixer = new THREE.AnimationMixer(m), A = {};
+  for (const k of ['idle','walk','run','carry']){ A[k] = mixer.clipAction(wc[k]); A[k].play(); A[k].setEffectiveWeight(0); } A.idle.setEffectiveWeight(1); return {model:m, mixer, A}; }
+function setPlayerKind(p, kind){ const b = p.bot; if (p.kind === kind && b.model) return; p.kind = kind;
+  if (kind === 'squirrel'){ b.mouseRig = b.mouseRig || {model:b.model, mixer:b.mixer, A:b.A}; b.model.visible = false; if (!b.sqRig){ b.sqRig = makeSquirrelRig(); b.root.add(b.sqRig.model); } b.sqRig.model.visible = true; Object.assign(b, {model:b.sqRig.model, mixer:b.sqRig.mixer, A:b.sqRig.A, cur:'idle'}); b.tag.position.y = 2.1; }
+  else { if (b.sqRig) b.sqRig.model.visible = false; if (b.mouseRig){ b.mouseRig.model.visible = true; Object.assign(b, {model:b.mouseRig.model, mixer:b.mouseRig.mixer, A:b.mouseRig.A, cur:'idle'}); } b.tag.position.y = 1.35; }
+  for (const k in b.A) b.A[k].setEffectiveWeight(k === 'idle' ? 1 : 0); }
+function addPlayer(id, name){ if (NET.players.has(id)) return; const at = new THREE.Vector3(PILE.x + rnd(-1.5, 1.5), 0, PILE.z + 3);
+  const b = makeMouseBot(at); b.state = 'player'; b.pid = id; b.tag = tagSprite('▶ ' + name, '#8fd3ff'); b.root.add(b.tag);
+  const p = {id, name, bot:b, kind:'mouse', pts:0, rats:0, since:0, kills:0, sqT:0, in:{mx:0, my:0}, stillT:0, cd:0, joined:Date.now()}; b.player = p; NET.players.set(id, p);
+  toast(`🐭 ${name} joined from the website`); }
+function removePlayer(id){ const p = NET.players.get(id); if (!p) return; const b = p.bot; if (b.body) botDrop(b); scene.remove(b.root); const i = MICE.indexOf(b); if (i >= 0) MICE.splice(i, 1); NET.players.delete(id); toast(`${p.name} left`); }
+function updPlayer(b, dt){ const p = b.player; if (!p) return; const sq = p.kind === 'squirrel';
+  let mx = p.in.mx, my = p.in.my; const l = Math.hypot(mx, my); if (l > 1){ mx /= l; my /= l; }
+  const sp = b.body ? (sq ? 2.4 : 2.0) / Math.max(1, b.body.size * 0.6) : (sq ? 4.4 : 3.4), moving = l > 0.12, pos = b.root.position;
+  if (moving){ pos.x += mx * sp * dt; pos.z += my * sp * dt; collide(pos, 0.3); pos.x = THREE.MathUtils.clamp(pos.x, -24, 24); pos.z = THREE.MathUtils.clamp(pos.z, -70, 34);
+    const f = Math.atan2(mx, my); let a = f - b.face; a = Math.atan2(Math.sin(a), Math.cos(a)); b.face += a * Math.min(1, dt * 12); p.stillT = 0; }
+  else p.stillT += dt;
+  if (!moving && p.stillT > 0.35){
+    if (!b.body){ let best = null, bd = 1.2; for (const c of bodies){ if (c.carried || c.flying || c.trapped || c.riding || c.fallen) continue; const d = Math.hypot(c.root.position.x - pos.x, c.root.position.z - pos.z); if (d < bd){ bd = d; best = c; } } if (best){ botGive(b, best); sfx.pick(); } }
+    else if (Math.hypot(pos.x - PILE.x, pos.z - PILE.z) < 2.8){ const n = Math.max(1, Math.round(b.body.size)); botDrop(b); p.rats += n; p.since += n; p.pts += n; } }
+  if (sq){ p.cd -= dt; if (p.cd <= 0 && !b.body){ let best = null, bd = T.range * 0.85; for (const r of rats){ if (r.dead) continue; const d = r.root.position.distanceTo(pos); if (d < bd){ bd = d; best = r; } }
+      if (best){ p.cd = 1.1; const from = pos.clone().setY(0.9), dir = best.root.position.clone().setY(0.5).sub(from).normalize(); b.face = Math.atan2(dir.x, dir.z); fireFrom(from.addScaledVector(dir, 0.6), dir, 'player', p); } } }
+  botAnim(b, b.body ? 'carry' : moving ? 'run' : 'idle', b.body ? (moving ? 0.9 : 0) : 1); b.root.rotation.y = b.face; b.mixer.update(dt); }
+function updPotions(dt){ const ps = [...NET.players.values()], sqs = ps.filter(p => p.kind === 'squirrel');
+  NET.timers = sqs.length >= NET.cfg.maxSq;
+  if (NET.timers) for (const p of sqs){ p.sqT -= dt; if (p.sqT <= 0){ setPlayerKind(p, 'mouse'); p.since = 0; toast(`⏱ ${p.name}'s potion wore off`); } }
+  const ready = ps.filter(p => p.kind === 'mouse' && p.since >= NET.cfg.potionAt).sort((a, b) => b.pts - a.pts);
+  if (ready.length && ps.filter(p => p.kind === 'squirrel').length < NET.cfg.maxSq){ const p = ready[0]; setPlayerKind(p, 'squirrel'); p.sqT = NET.cfg.sqStart; p.since = 0;
+    burst(p.bot.root.position.clone().setY(1), 0x9b6bff, 30, 4, 4); sfx.drop(); toast(`🧪 ${p.name} drank a potion: now a squirrel!`); }
+  NET.queue = ready.filter(p => p.kind === 'mouse').map(p => p.id); }
+function netSend(o){ if (NET.ws && NET.ws.readyState === 1) NET.ws.send(typeof o === 'string' ? o : JSON.stringify(o)); }
+const r2 = v => Math.round(v * 100) / 100;
+function netSnap(){ const mice = MICE.filter(b => b.state !== 'player');
+  const ps = [...NET.players.values()].map(p => [p.id, r2(p.bot.root.position.x), r2(p.bot.root.position.z), r2(p.bot.face), p.kind === 'squirrel' ? 1 : 0, p.bot.body ? 1 : 0, p.name]);
+  return '{"t":"snap","s":' + JSON.stringify({h:[r2(W.root.position.x), r2(W.root.position.z), r2(W.face), W.carrying ? 1 : 0, W.dead ? 1 : 0], p:ps,
+    m:mice.map(b => [r2(b.root.position.x), r2(b.root.position.z), r2(b.face), b.body ? 1 : 0, b.cur === 'idle' ? 0 : 1]),
+    r:rats.filter(r => !r.dead).map(r => [r2(r.root.position.x), r2(r.root.position.z), r2(r.face || r.root.rotation.y), Math.round(r.size * 10) / 10]),
+    b:bodies.filter(c => !c.carried && !c.flying).map(c => [r2(c.root.position.x), r2(c.root.position.z), Math.round(c.size)]),
+    pile:pile.length, wave:FP.wave, hall:Math.ceil(FP.hall || 0), vote:STREAM.window ? Math.ceil(STREAM.window.t) : 0}) + '}'; }
+function netWorld(){ return {t:'world', wires:WIRES.map(w => [w.kind, w.sqs.map(q => [q.i, q.j])]), out:L3.on ? 3 : L2.on ? 2 : OUT.deployed ? 1 : 0,
+    seats:(STREAM.seats || []).map(b => b.label || '')}; }
+function updNet(dt){ if (!NET.on) return; updPotions(dt);
+  NET.sendT -= dt; if (NET.sendT <= 0){ NET.sendT = 0.125; netSend(netSnap()); }
+  NET.worldT -= dt; if (NET.worldT <= 0){ NET.worldT = 3; netSend({t:'bcast', m:netWorld()}); }
+  NET.meT -= dt; if (NET.meT <= 0){ NET.meT = 1; const ps = [...NET.players.values()], ranked = [...ps].sort((a, b) => b.pts - a.pts);
+    for (const p of ps) netSend({t:'to', id:p.id, m:{t:'me', kind:p.kind, pts:p.pts, rats:p.rats, since:p.since, need:NET.cfg.potionAt, rank:ranked.indexOf(p) + 1, of:ps.length,
+      sqLeft:p.kind === 'squirrel' ? (NET.timers ? Math.ceil(p.sqT) : -1) : 0, queue:NET.queue.indexOf(p.id) + 1, sq:ps.filter(x => x.kind === 'squirrel').length, maxSq:NET.cfg.maxSq}}); } }
+function netConnect(pw){ if (NET.ws) try { NET.ws.onclose = null; NET.ws.close(); } catch(e){}
+  NET.status = 'connecting'; const ws = NET.ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.onopen = () => ws.send(JSON.stringify({t:'host', pw}));
+  ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch(err){ return; }
+    if (m.t === 'hostok'){ NET.on = true; NET.status = 'live'; netSend({t:'cfg', max:NET.cfg.maxPlayers}); for (const pl of m.players || []) addPlayer(pl.id, pl.name); toast('🔴 Live: website players can join'); }
+    else if (m.t === 'hostbad'){ NET.status = 'wrong password'; }
+    else if (m.t === 'kicked'){ NET.on = false; NET.status = 'another host tab took over'; }
+    else if (m.t === 'vjoin') addPlayer(m.id, m.name);
+    else if (m.t === 'vleave') removePlayer(m.id);
+    else if (m.t === 'in'){ const p = NET.players.get(m.id); if (p){ p.in.mx = +m.mx || 0; p.in.my = +m.my || 0; } }
+    else if (m.t === 'act'){ const p = NET.players.get(m.id); if (p && m.a === 'drop' && p.bot.body){ const bd = p.bot.body; p.bot.body = null; p.bot.root.remove(bd.root); bd.carried = false; bd.root.position.copy(p.bot.root.position); bd.root.rotation.set(0, 0, Math.PI/2); scene.add(bd.root); } } };
+  ws.onclose = () => { const was = NET.on; NET.on = false; if (NET.status === 'live') NET.status = 'reconnecting'; if (was || NET.status === 'reconnecting') setTimeout(() => { if (NET.status === 'reconnecting') netConnect(pw); }, 3000); };
+}
+
+// ---------- VIEWER (?mode=play): a website player's screen. The host's browser runs the game; this page draws its snapshots,
+// sends the thumb or WASD direction, and shows the player's own points, rank, potion progress and squirrel timer ----------
+const VIEWER = {on:new URLSearchParams(location.search).get('mode') === 'play', ws:null, id:null, snap:null, me:null, status:'', rats:[], bodies:[], mice:[], players:new Map(), sendT:0, last:'', wiresKey:'', out:0};
+function vwBody(){ const r = makeRat(); r.root.scale.setScalar(RAT_SCALE); setRatAnim(r, 'idle', 0); r.mixer.setTime(0.2); for (const m of r.mats) m.color.setHex(0x9a9a86); r.root.rotation.set(0, rnd(0, 6), Math.PI/2); return r; }
+function vwPool(arr, n, make){ while (arr.length < n) arr.push(make()); arr.forEach((e, i) => { e.root.visible = i < n; }); }
+const vwLerp = (v, x, z, dt) => { const k = Math.min(1, dt * 12); if (Math.hypot(x - v.x, z - v.z) > 6){ v.x = x; v.z = z; } else { v.x += (x - v.x) * k; v.z += (z - v.z) * k; } };
+function vwAngle(cur, want, dt){ let a = want - cur; a = Math.atan2(Math.sin(a), Math.cos(a)); return cur + a * Math.min(1, dt * 12); }
+function vwApplyWorld(m){
+  const key = JSON.stringify(m.wires); if (key !== VIEWER.wiresKey){ VIEWER.wiresKey = key; for (const w of [...WIRES]){ scene.remove(w.mesh); if (w.bar) scene.remove(w.bar); } WIRES.length = 0;
+    for (const [kind, sqs] of m.wires){ try { layWire(sqs.map(([i, j]) => ({i, j})), kind); } catch(e){} } }
+  while (VIEWER.out < m.out){ VIEWER.out++; try { OUT.box = makeOutpostBox(); if (VIEWER.out === 1) deployOutpost(); else if (VIEWER.out === 2) deployL2(); else deployL3(); } catch(e){} }
+}
+function vwTick(dt){
+  const S2 = VIEWER.snap; if (!S2) return;
+  // the host squirrel (weaselwonder)
+  const h = S2.h; vwLerp(W.root.position, h[0], h[1], dt); W.root.rotation.y = vwAngle(W.root.rotation.y, h[2], dt);
+  const hm = Math.hypot(h[0] - (VIEWER.hp || [0,0])[0], h[1] - (VIEWER.hp || [0,0])[1]) > 0.02; VIEWER.hp = h;
+  setTargets(h[3] ? {carry:1} : hm ? {run:1} : {idle:1}); blendWeights(dt); W.mixer.update(dt);
+  // rats, bodies
+  vwPool(VIEWER.rats, S2.r.length, () => { const r = makeRat(); setRatAnim(r, 'walk', 1); return r; });
+  S2.r.forEach(([x, z, f, sz], i) => { const r = VIEWER.rats[i]; vwLerp(r.root.position, x, z, dt); r.root.rotation.y = vwAngle(r.root.rotation.y, f, dt); r.root.scale.setScalar(RAT_SCALE * vis(sz)); r.mixer.update(dt); });
+  vwPool(VIEWER.bodies, S2.b.length, vwBody);
+  S2.b.forEach(([x, z, sz], i) => { const c = VIEWER.bodies[i]; c.root.position.set(x, 0, z); c.root.scale.setScalar(RAT_SCALE * vis(sz)); });
+  // helper and citizen mice
+  vwPool(VIEWER.mice, S2.m.length, () => { const b = makeMouseBot(new THREE.Vector3(0, 0, 0)); MICE.splice(MICE.indexOf(b), 1); return b; });
+  S2.m.forEach(([x, z, f, c, mv], i) => { const b = VIEWER.mice[i]; vwLerp(b.root.position, x, z, dt); b.face = vwAngle(b.face, f, dt); b.root.rotation.y = b.face; botAnim(b, c ? 'carry' : mv ? 'run' : 'idle', c && !mv ? 0 : 1); b.mixer.update(dt); });
+  // website players
+  const seen = new Set();
+  for (const [id, x, z, f, sq, c, name] of S2.p){ seen.add(id); let p = VIEWER.players.get(id);
+    if (!p){ const b = makeMouseBot(new THREE.Vector3(x, 0, z)); MICE.splice(MICE.indexOf(b), 1); const mine = id === VIEWER.id; b.tag = tagSprite((mine ? '★ ' : '') + name, mine ? '#ffe08a' : '#8fd3ff'); b.root.add(b.tag); p = {bot:b, kind:'mouse', last:[x, z]}; VIEWER.players.set(id, p); }
+    const b = p.bot; if ((sq ? 'squirrel' : 'mouse') !== p.kind) setPlayerKind(p, sq ? 'squirrel' : 'mouse');
+    const mv = Math.hypot(x - p.last[0], z - p.last[1]) > 0.01; p.last = [x, z];
+    vwLerp(b.root.position, x, z, dt); b.face = vwAngle(b.face, f, dt); b.root.rotation.y = b.face; botAnim(b, c ? 'carry' : mv ? 'run' : 'idle', c && !mv ? 0 : 1); b.mixer.update(dt); }
+  for (const [id, p] of VIEWER.players) if (!seen.has(id)){ scene.remove(p.bot.root); VIEWER.players.delete(id); }
+  // corpse pile mound
+  while (pile.length < S2.pile) pile.push({root:new THREE.Group()}); pile.length = Math.min(pile.length, S2.pile); updMound();
+  // camera follows you (or weaselwonder while you wait)
+  const mine = VIEWER.players.get(VIEWER.id), tgt = mine ? mine.bot.root.position : W.root.position, z = 1 + VIEWER.zoom * 0.8;
+  camera.position.lerp(new THREE.Vector3(tgt.x, 17 * z, tgt.z + 8 * z), Math.min(1, dt * 6)); camera.lookAt(camera.position.x, 0, camera.position.z - 8 * z);
+  // input: WASD / arrows / left thumb, sent 10 times a second
+  let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), my = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
+  if (sticks.L.id !== null){ mx = sticks.L.x; my = sticks.L.y; }
+  VIEWER.sendT -= dt; const msg = `${mx.toFixed(2)},${my.toFixed(2)}`;
+  if (VIEWER.sendT <= 0 || (msg !== VIEWER.last && VIEWER.sendT < 0.06)){ VIEWER.sendT = 0.1; if (msg !== VIEWER.last || Math.random() < 0.1){ VIEWER.last = msg; vwSend({t:'in', mx, my}); } }
+}
+function vwSend(o){ if (VIEWER.ws && VIEWER.ws.readyState === 1) VIEWER.ws.send(JSON.stringify(o)); }
+const meEl = document.createElement('div'); meEl.id = 'me';
+meEl.style.cssText = 'pointer-events:none;position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:7;min-width:300px;max-width:94vw;background:#1d1813ee;border:3px solid #e8c37a;border-radius:16px;padding:8px 14px;color:#f3ead8;font:700 15px system-ui;text-align:center;display:none';
+document.body.appendChild(meEl);
+function vwHud(){ const m = VIEWER.me, st = VIEWER.status;
+  if (st !== 'playing' || !m){ meEl.innerHTML = st === 'waiting' ? '<b style="color:#e8c37a">The squad is full</b><br>You are in the queue and watching live. You join when a slot opens.' : st === 'offline' ? '<b style="color:#e8c37a">Weasel is offline</b><br>Come back when the stream is live, or play the tutorial at weaselwonder.com' : st || 'Connecting…'; return; }
+  const sq = m.kind === 'squirrel', pc = Math.min(100, Math.round(m.since / m.need * 100));
+  meEl.innerHTML = `<div style="display:flex;justify-content:space-between;gap:14px"><span>${sq ? '🐿️ SQUIRREL' : '🐭 MOUSE'}</span><span>⭐ ${m.pts} pts</span><span>#${m.rank} of ${m.of}</span></div>` +
+    (sq ? `<div style="margin-top:4px">${m.sqLeft >= 0 ? `⏱ Squirrel time left: <b style="color:#ffe08a">${m.sqLeft}s</b> (+5 s a kill)` : `Squirrel slots ${m.sq}/${m.maxSq}: no timer until all are taken`}. You shoot rats by yourself.</div>`
+        : `<div style="margin-top:6px;height:12px;border-radius:6px;background:#2a221a;overflow:hidden"><i style="display:block;height:100%;width:${pc}%;background:#9b6bff"></i></div><div style="margin-top:3px">🧪 Potion: ${m.since}/${m.need} rats to the pile${m.queue ? ` · in the potion queue: #${m.queue}` : ''}</div>`) +
+    `<div style="font-size:12px;color:#b9ad97;margin-top:4px">Move: drag the left side or WASD · stand still on a body to pick it up · stand still by the pile to drop it · tap left or Q to let go</div>`; }
+function vwConnect(name){
+  let cid = ''; try { cid = localStorage.getItem('zb_cid') || ''; if (!cid){ cid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('zb_cid', cid); } } catch(e){}
+  const ws = VIEWER.ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); VIEWER.status = 'Connecting…'; meEl.style.display = 'block'; vwHud();
+  ws.onopen = () => ws.send(JSON.stringify({t:'join', name, cid}));
+  ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch(err){ return; }
+    if (m.t === 'snap'){ VIEWER.snap = m.s; return; }
+    if (m.t === 'lobby'){ if (!m.host && VIEWER.status !== 'playing') { VIEWER.status = 'offline'; vwHud(); } return; }
+    if (m.t === 'welcome'){ VIEWER.id = m.id; VIEWER.status = m.status; vwHud(); try { localStorage.setItem('zb_name', m.name); } catch(e2){} }
+    else if (m.t === 'promoted'){ VIEWER.status = 'playing'; toast('You are in! Collect rats for the town'); }
+    else if (m.t === 'afk'){ VIEWER.status = 'waiting'; toast('You were idle, so you went back to the queue'); }
+    else if (m.t === 'removed'){ VIEWER.status = `Removed by the host for ${m.mins} minutes`; }
+    else if (m.t === 'badname'){ VIEWER.status = m.reason; }
+    else if (m.t === 'me'){ const was = VIEWER.me && VIEWER.me.kind; VIEWER.me = m; if (was === 'mouse' && m.kind === 'squirrel') toast('🧪 You drank a potion: you are a squirrel!'); }
+    else if (m.t === 'world'){ vwApplyWorld(m); }
+    vwHud(); };
+  ws.onclose = () => { VIEWER.status = 'Connection lost, reconnecting…'; vwHud(); setTimeout(() => vwConnect(name), 3000); };
+  setInterval(vwHud, 1000);
+}
+VIEWER.zoom = 0;
 // ---------- bolts ----------
 const bolts = [];
 const boltGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.55, 5); boltGeo.rotateX(Math.PI/2);
@@ -1404,7 +1549,7 @@ function updBolts(dt){
       hit.stagger = 0.18; hit.spotted = true;   // a shot rat knows where you are, whatever its sight
       hit.root.position.addScaledVector(b.d, 0.12);
       burst(b.m.position, 0xe9e0c6, 6, 2.5, 2); burst(b.m.position, 0x7fbf3f, 4, 2, 2); sfx.hit();
-      if (hit.hp <= 0){ killRat(hit); if (b.turret) tut.turretKills = (tut.turretKills || 0) + 1; else if (b.tower){ tut.towerKills = (tut.towerKills || 0) + 1; if (!tut.towerSaid && !CUT.on){ tut.towerSaid = true; toast('A tower shot a rat!'); } } else tut.playerKills = (tut.playerKills || 0) + 1; }
+      if (hit.hp <= 0){ killRat(hit); if (b.owner){ b.owner.kills++; b.owner.pts += 1; if (b.owner.kind === 'squirrel' && NET.timers) b.owner.sqT = Math.min(NET.cfg.sqCap, b.owner.sqT + NET.cfg.sqPerKill); } else if (b.turret) tut.turretKills = (tut.turretKills || 0) + 1; else if (b.tower){ tut.towerKills = (tut.towerKills || 0) + 1; if (!tut.towerSaid && !CUT.on){ tut.towerSaid = true; toast('A tower shot a rat!'); } } else tut.playerKills = (tut.playerKills || 0) + 1; }
     }
     if (hit || b.dist > (b.tower ? TOWER_RANGE + 2 : T.range + 1)){ if(!hit) burst(b.m.position, 0xbfb59b, 4, 1.5, 1.5); scene.remove(b.m); bolts.splice(i,1); }
   }
@@ -1415,7 +1560,7 @@ const keys = {};
 addEventListener('keydown', e=>{
   keys[e.code] = true;
   if (e.code==='Space'){ toggleWeapon(); e.preventDefault(); }   // keyboard first: Space puts the crossbow away or out
-  if (e.code==='KeyQ'){ dropBody(); e.preventDefault(); }
+  if (e.code==='KeyQ'){ if (VIEWER.on) vwSend({t:'act', a:'drop'}); else dropBody(); e.preventDefault(); }
   if (e.code==='KeyP' && started) togglePause();
   if (e.code.startsWith('Arrow')) e.preventDefault();
 });
@@ -1505,7 +1650,7 @@ cvs.addEventListener('touchmove', e=>{
     s.x = dx/max; s.y = dy/max; s.el.firstElementChild.style.transform = `translate(${dx}px,${dy}px)`; } }
   e.preventDefault();
 }, {passive:false});
-const endTouch = e=>{ for (const t of e.changedTouches){ const tp = touchPos[t.identifier]; if (tp && tp.t0 && performance.now() - tp.t0 < 260 && Math.hypot(t.clientX - tp.x0, t.clientY - tp.y0) < 14 && !PINCH.on){ if (!onWorldTap(t.clientX, t.clientY)){ if (t.clientX > innerWidth/2) toggleWeapon(); else if (W.carrying) dropBody(); } }   /* left thumb tap drops what you carry, like Q */ delete touchPos[t.identifier]; if (PINCH.on && (t.identifier === PINCH.a || t.identifier === PINCH.b)) PINCH.on = false; } for (const t of e.changedTouches){ for (const s of [sticks.L, sticks.R]){ if (s.id===t.identifier){ s.id=null; s.x=s.y=0; s.el.style.display='none'; } } } };
+const endTouch = e=>{ for (const t of e.changedTouches){ const tp = touchPos[t.identifier]; if (tp && tp.t0 && performance.now() - tp.t0 < 260 && Math.hypot(t.clientX - tp.x0, t.clientY - tp.y0) < 14 && !PINCH.on){ if (!onWorldTap(t.clientX, t.clientY)){ if (t.clientX > innerWidth/2) toggleWeapon(); else if (VIEWER.on) vwSend({t:'act', a:'drop'}); else if (W.carrying) dropBody(); } }   /* left thumb tap drops what you carry, like Q */ delete touchPos[t.identifier]; if (PINCH.on && (t.identifier === PINCH.a || t.identifier === PINCH.b)) PINCH.on = false; } for (const t of e.changedTouches){ for (const s of [sticks.L, sticks.R]){ if (s.id===t.identifier){ s.id=null; s.x=s.y=0; s.el.style.display='none'; } } } };
 cvs.addEventListener('touchend', endTouch); cvs.addEventListener('touchcancel', endTouch);
 
 // camera-relative directions: camera looks toward -z, so screen up = -z
@@ -1903,9 +2048,9 @@ function turretMesh(){
   g.userData.head = head; g.userData.bow = bow; g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g;
 }
 const turrets = () => WIRES.filter(w => w.kind === 'turret');
-function fireFrom(p, dir, who='turret'){
+function fireFrom(p, dir, who='turret', owner=null){
   const m = new THREE.Mesh(boltGeo, boltMat); m.userData.outlineParameters = {thickness:0.003}; if (who === 'tower') m.scale.setScalar(1.6);
-  m.position.copy(p); m.lookAt(p.clone().add(dir)); scene.add(m); bolts.push({m, d:dir.clone(), dist:0, turret:who === 'turret', tower:who === 'tower'}); sfx.shoot();
+  m.position.copy(p); m.lookAt(p.clone().add(dir)); scene.add(m); bolts.push({m, d:dir.clone(), dist:0, turret:who === 'turret', tower:who === 'tower', owner}); if (!owner) sfx.shoot();
 }
 function updTurret(w, dt){
   if (w.grow < 1){ w.grow = Math.min(1, w.grow + dt * 2.5); const e = 1 - Math.pow(1 - w.grow, 3); w.mesh.scale.set(1, 0.3 + 0.7 * e, 1); }
@@ -3325,7 +3470,7 @@ function update(dt){
 let last = performance.now();
 function frame(now){
   const dt = Math.min(0.05, (now - last)/1000); last = now;
-  if (started && !paused && !STREAM.freeze) update(dt); else if (STREAM.freeze){ STREAM.orbit(dt); if (STREAM.window){ STREAM.window.t -= dt; if (STREAM.window.t <= 0) ZB.closeVote(); } for (const b of MICE) b.mixer.update(dt); } else if (paused) {} else { W.mixer.update(dt); blendWeights(dt); camPos.set(0,13,15); camera.position.copy(camPos); camera.lookAt(0,0,6); }
+  if (VIEWER.on){ if (started) vwTick(dt); } else if (started && !paused && !STREAM.freeze) update(dt); else if (STREAM.freeze){ STREAM.orbit(dt); if (STREAM.window){ STREAM.window.t -= dt; if (STREAM.window.t <= 0) ZB.closeVote(); } if (NET.on){ NET.sendT -= dt; if (NET.sendT <= 0){ NET.sendT = 0.25; netSend(netSnap()); } } for (const b of MICE) b.mixer.update(dt); } else if (paused) {} else { W.mixer.update(dt); blendWeights(dt); camPos.set(0,13,15); camera.position.copy(camPos); camera.lookAt(0,0,6); }
   effect.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -3340,10 +3485,17 @@ go.onclick = ()=>{
   document.getElementById('overlay').style.display = 'none'; started = true; last = performance.now();
   startStage(0);
 };
+if (VIEWER.on){ document.body.classList.add('stream'); const st = document.createElement('style'); st.textContent = 'body.stream #tut, body.stream #btns, body.stream #help, body.stream #hint, body.stream #stickR, body.stream #hpwrap, body.stream #pile, body.stream #map{display:none!important} #me{top:auto!important;bottom:12px}'; document.head.appendChild(st);
+  const qn = new URLSearchParams(location.search).get('name') || (()=>{ try { return localStorage.getItem('zb_name') || ''; } catch(e){ return ''; } })();
+  document.querySelector('#overlay p').innerHTML = '<b>Play live with weaselwonder.</b> Join the town as a mouse: carry dead rats to the corpse pile. 10 rats earns a potion that turns you into a squirrel.';
+  const inp = document.createElement('input'); inp.id = 'vwName'; inp.maxLength = 14; inp.placeholder = 'Your name'; inp.value = qn; inp.style.cssText = 'font:700 20px system-ui;padding:10px 14px;border-radius:12px;border:2px solid #e8c37a;background:#1d1813;color:#f3ead8;margin:8px;text-align:center';
+  go.parentNode.insertBefore(inp, go); go.textContent = 'Join the game';
+  go.onclick = ()=>{ const nm = inp.value.trim(); if (nm.length < 2){ inp.focus(); return; } try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} document.getElementById('overlay').style.display = 'none'; started = true; last = performance.now(); W.armed = true; vwConnect(nm); };
+}
 if (STREAM.on){ document.body.classList.add('stream'); const st = document.createElement('style'); st.textContent = 'body.stream #tut, body.stream #btns, body.stream .stick, body.stream #help, body.stream #hint{display:none!important} body.stream #overlay h1{font-size:40px}'; document.head.appendChild(st);
   go.onclick = ()=>{ try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} document.getElementById('overlay').style.display = 'none'; started = true; last = performance.now(); ZB.start(); VIEW.zoom = VIEW.zoomWant = 0.55; };
   window.parent && window.parent.postMessage({zb:'ready'}, '*'); }
-window.__log=[]; window.__zb = { ZB, STREAM, spawnGrazer, FP, DIFFS, applyDiff, produce, VOTE_AT, HALL_AT, castVote, openBallot, SET, breakBelt, pathNearest, L3, END_ZONE, hopperPos, outputPos, factoryPos, L2, deployL2, queueItem, itemPadPos, DOCK_AT, padSlotPos, lineDone, COILS_:null, addCoil, sign, belt, toon, makeRat, MODELS, BELTS, TOWN, ROADS, GATES, OUT, OUT_SITE, storePos, loadPos, RESP, BELLS, ALERT, setAlert, PILE, XB_HAND, CLUB, handBone, findBone, scene, SQT, POTION, RIG:()=>RIG, MICE, carriers, turrets, TRAYS, startWave, bolts, toggleWeapon, BONES, allTraps, carrySpeed, drawn, startStage, STAGES, step:(n)=>{ for(let i=0;i<n;i++) update(1/60); }, tut, resetGame, togglePause, killRat, camera, W, rats, bodies, pile, T, THREE, layWire, toon, spawnRat, stockPile, GATES, CUT, XB_ITEM, VIEW, SET, BUILD, WIRES, COILS, sqOf, sqPos, start:()=>go.onclick(), keys, mouse};
+window.__log=[]; window.__zb = { VIEWER, NET, addPlayer, ZB, STREAM, spawnGrazer, FP, DIFFS, applyDiff, produce, VOTE_AT, HALL_AT, castVote, openBallot, SET, breakBelt, pathNearest, L3, END_ZONE, hopperPos, outputPos, factoryPos, L2, deployL2, queueItem, itemPadPos, DOCK_AT, padSlotPos, lineDone, COILS_:null, addCoil, sign, belt, toon, makeRat, MODELS, BELTS, TOWN, ROADS, GATES, OUT, OUT_SITE, storePos, loadPos, RESP, BELLS, ALERT, setAlert, PILE, XB_HAND, CLUB, handBone, findBone, scene, SQT, POTION, RIG:()=>RIG, MICE, carriers, turrets, TRAYS, startWave, bolts, toggleWeapon, BONES, allTraps, carrySpeed, drawn, startStage, STAGES, step:(n)=>{ for(let i=0;i<n;i++) update(1/60); }, tut, resetGame, togglePause, killRat, camera, W, rats, bodies, pile, T, THREE, layWire, toon, spawnRat, stockPile, GATES, CUT, XB_ITEM, VIEW, SET, BUILD, WIRES, COILS, sqOf, sqPos, start:()=>go.onclick(), keys, mouse};
 </script>
 </body>
 </html>

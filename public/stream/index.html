@@ -110,6 +110,16 @@
   <label>tik.tools API key <input id="ttKey" type="password" placeholder="stays in this browser"></label>
   <div><button id="ttGo">Connect TikTok</button> <span class="st" id="ttSt">not connected</span></div>
   <div class="st">Test before going live: put any creator who is live right now in the TikTok username box and connect. Their chat should appear on the right (nobody joins your town unless you start the game).</div>
+  <h3>Website players (go live)</h3>
+  <label>Host password <input id="hostPw" type="password" placeholder="your I am Weasel password"></label>
+  <div><button id="liveGo" class="primary">Go live: open the town to website players</button> <span class="st" id="liveSt">offline</span></div>
+  <label>Max website players <input id="cMaxP" type="number" min="1" max="25"></label>
+  <label>Squirrel slots <input id="cMaxSq" type="number" min="1" max="10"></label>
+  <label>Rats for a potion <input id="cPot" type="number" min="1"></label>
+  <label>Squirrel start time (s) <input id="cSqS" type="number" min="10"></label>
+  <label>Seconds per kill <input id="cSqK" type="number" min="0"></label>
+  <label>Squirrel time cap (s) <input id="cSqC" type="number" min="30"></label>
+  <div class="st" id="livePlayers"></div>
   <h3>Test chat</h3>
   <label>Name <input id="tName" value="tester"></label>
   <label>Message <input id="tMsg" value="join"></label>
@@ -130,7 +140,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const SKEY = 'zb_stream_settings';
-const S = Object.assign({twCh:'weaselwonder', ttUser:'weaselwonder', ttKey:'', diff:'medium', voteEvery:180, voteLen:45, cooldown:30, ptsVote:1, ptsComment:1, ptsGiftCoin:2, outcastAfter:3, maxBodies:24}, (()=>{ try { return JSON.parse(localStorage.getItem(SKEY) || '{}'); } catch(e){ return {}; } })());
+const S = Object.assign({twCh:'weaselwonder', ttUser:'weaselwonder', ttKey:'', diff:'medium', voteEvery:180, voteLen:45, cooldown:30, ptsVote:1, ptsComment:1, ptsGiftCoin:2, outcastAfter:3, maxBodies:24, maxPlayers:10, maxSq:3, potionAt:10, sqStart:60, sqPerKill:5, sqCap:180}, (()=>{ try { return JSON.parse(localStorage.getItem(SKEY) || '{}'); } catch(e){ return {}; } })());
 if ((S.v || 1) < 2){ Object.assign(S, {v:2, diff:'medium', voteEvery:180, voteLen:45}); }   // new stream defaults (Oliver, 17:46)
 const save = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch(e){} };
 // scale the 1920x1080 stage to the window (OBS browser source at 1920x1080 shows it 1:1)
@@ -200,13 +210,17 @@ function refresh(){
 setInterval(refresh, 500);
 // remember events (joins, roles, outcasts) from the game's toasts into the feed
 // ---------- settings ----------
-const map = {cDiff:'diff', cEvery:'voteEvery', cLen:'voteLen', cCool:'cooldown', cPV:'ptsVote', cPC:'ptsComment', cPG:'ptsGiftCoin', cOut:'outcastAfter', cMax:'maxBodies'};
+const map = {cMaxP:'maxPlayers', cMaxSq:'maxSq', cPot:'potionAt', cSqS:'sqStart', cSqK:'sqPerKill', cSqC:'sqCap', cDiff:'diff', cEvery:'voteEvery', cLen:'voteLen', cCool:'cooldown', cPV:'ptsVote', cPC:'ptsComment', cPG:'ptsGiftCoin', cOut:'outcastAfter', cMax:'maxBodies'};
 function pushCfg(){ const z = Z(); if (!z) return; const o = {}; for (const k of Object.values(map)) o[k] = k === 'diff' ? S[k] : +S[k]; z.setCfg(o); }
 function loadForm(){ $('twCh').value = S.twCh; $('ttUser').value = S.ttUser; $('ttKey').value = S.ttKey; for (const [id, k] of Object.entries(map)) $(id).value = S[k]; }
 loadForm();
 for (const [id, k] of Object.entries(map)) $(id).addEventListener('change', () => { S[k] = $(id).type === 'number' ? +$(id).value : $(id).value; save(); pushCfg(); });
 for (const [id, k] of [['twCh','twCh'],['ttUser','ttUser'],['ttKey','ttKey']]) $(id).addEventListener('change', () => { S[k] = $(id).value.trim(); save(); });
-$('twGo').onclick = twConnect; $('ttGo').onclick = () => { S.ttAuto = true; ttConnect(); };
+$('twGo').onclick = twConnect;
+$('liveGo').onclick = () => { const pw = $('hostPw').value; if (!pw){ $('liveSt').textContent = 'type your host password first'; return; } if (!Z() || !started){ $('liveSt').textContent = 'start the town first'; return; } Z().goLive(pw); };
+setInterval(() => { const z = Z(); if (!z || !z.net) return; const n = z.net(); $('liveSt').textContent = n.status; $('liveSt').className = 'st ' + (n.status === 'live' ? 'ok' : n.status === 'offline' ? '' : 'err');
+  $('livePlayers').innerHTML = n.players.length ? n.players.map(p => `${p.kind === 'squirrel' ? '🐿️' : '🐭'} ${esc(p.name)} · ${p.pts} pts${p.kind === 'squirrel' && n.timers ? ' · ' + p.sqT + 's' : ''} <a href="#" data-k="${esc(p.name)}" style="color:#ff9a8a">kick</a>`).join('<br>') : 'No website players yet';
+  $('livePlayers').querySelectorAll('a').forEach(a => a.onclick = ev => { ev.preventDefault(); z.kickPlayer(a.dataset.k); }); }, 1000); $('ttGo').onclick = () => { S.ttAuto = true; ttConnect(); };
 $('tSend').onclick = () => onChat('test', $('tName').value, $('tMsg').value);
 $('tGift').onclick = () => onGift('test', $('tName').value, 5, '5-coin test gift');
 $('tBots').onclick = () => { for (let i = 0; i < 10; i++){ const n = 'test' + Math.floor(Math.random() * 900 + 100); onChat('test', n, 'join'); } };
