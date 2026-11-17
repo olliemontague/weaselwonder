@@ -111,7 +111,6 @@
   <div><button id="ttGo">Connect TikTok</button> <span class="st" id="ttSt">not connected</span></div>
   <div class="st">Test before going live: put any creator who is live right now in the TikTok username box and connect. Their chat should appear on the right (nobody joins your town unless you start the game).</div>
   <h3>Website players (go live)</h3>
-  <label>Host password <input id="hostPw" type="password" placeholder="your I am Weasel password"></label>
   <div><button id="liveGo" class="primary">Go live: open the town to website players</button> <span class="st" id="liveSt">offline</span></div>
   <label>Max website players <input id="cMaxP" type="number" min="1" max="25"></label>
   <label>Squirrel slots <input id="cMaxSq" type="number" min="1" max="10"></label>
@@ -217,7 +216,7 @@ loadForm();
 for (const [id, k] of Object.entries(map)) $(id).addEventListener('change', () => { S[k] = $(id).type === 'number' ? +$(id).value : $(id).value; save(); pushCfg(); });
 for (const [id, k] of [['twCh','twCh'],['ttUser','ttUser'],['ttKey','ttKey']]) $(id).addEventListener('change', () => { S[k] = $(id).value.trim(); save(); });
 $('twGo').onclick = twConnect;
-$('liveGo').onclick = () => { const pw = $('hostPw').value; if (!pw){ $('liveSt').textContent = 'type your host password first'; return; } if (!Z() || !started){ $('liveSt').textContent = 'start the town first'; return; } Z().goLive(pw); };
+$('liveGo').onclick = () => { if (!Z() || !started){ $('liveSt').textContent = 'start the town first'; return; } Z().goLive(''); };   // your /stream login is the host pass
 setInterval(() => { const z = Z(); if (!z || !z.net) return; const n = z.net(); $('liveSt').textContent = n.status; $('liveSt').className = 'st ' + (n.status === 'live' ? 'ok' : n.status === 'offline' ? '' : 'err');
   $('livePlayers').innerHTML = n.players.length ? n.players.map(p => `${p.kind === 'squirrel' ? '🐿️' : '🐭'} ${esc(p.name)} · ${p.pts} pts${p.kind === 'squirrel' && n.timers ? ' · ' + p.sqT + 's' : ''} <a href="#" data-k="${esc(p.name)}" style="color:#ff9a8a">kick</a>`).join('<br>') : 'No website players yet';
   $('livePlayers').querySelectorAll('a').forEach(a => a.onclick = ev => { ev.preventDefault(); z.kickPlayer(a.dataset.k); }); }, 1000); $('ttGo').onclick = () => { S.ttAuto = true; ttConnect(); };
