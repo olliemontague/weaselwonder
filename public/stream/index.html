@@ -210,6 +210,9 @@ function refresh(){
   if (s.lost && !refresh.ended){ refresh.ended = true; line('💀 The town hall fell. Restarting soon…', 'bad'); }
 }
 setInterval(refresh, 500);
+// game log: uploaded every minute (and on End game) so problems can be looked at afterwards. Kept 14 days
+function flushLog(){ const z = Z(); if (!z || !z.takeLog) return; const lines = z.takeLog(); if (!lines.length) return; fetch('/api/log', {method:'POST', body:lines.join('\n')}).catch(() => {}); }
+setInterval(flushLog, 60000); addEventListener('beforeunload', flushLog);
 // remember events (joins, roles, outcasts) from the game's toasts into the feed
 // ---------- settings ----------
 const map = {cMaxP:'maxPlayers', cMaxSq:'maxSq', cPot:'potionAt', cSqS:'sqStart', cSqK:'sqPerKill', cSqC:'sqCap', cDiff:'diff', cEvery:'voteEvery', cLen:'voteLen', cCool:'cooldown', cPV:'ptsVote', cPC:'ptsComment', cPG:'ptsGiftCoin', cOut:'outcastAfter', cMax:'maxBodies'};
@@ -237,7 +240,7 @@ addEventListener('keydown', hostKeys);
 $('vbEnd').onclick = () => Z() && Z().closeVote();
 $('gPause').onclick = () => { const g = G(); if (g && g.__zb) g.__zb.togglePause(); };
 $('gRestart').onclick = () => { if (!confirm('Restart the town? Citizens and points are kept.')) return; const z = Z(); if (z){ z.start(S.diff); refresh.ended = false; } };
-$('gEnd').onclick = () => { if (!confirm('End the game? Website players are sent back to the home page.')) return; const z = Z(); if (z && z.endGame) z.endGame();
+$('gEnd').onclick = () => { if (!confirm('End the game? Website players are sent back to the home page.')) return; const z = Z(); if (z && z.endGame) z.endGame(); flushLog();
   try { if (tw){ tw.onclose = null; tw.close(); } if (tt){ tt.onclose = null; tt.close(); } } catch(e){}
   setTimeout(() => { document.cookie = 'zb_stream=; Path=/; Max-Age=0'; location.href = '/api/stream-logout'; }, 1200); };
 // ---------- start ----------

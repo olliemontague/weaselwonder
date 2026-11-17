@@ -1284,7 +1284,7 @@ function streamProduce(){
   return true;
 }
 function activeCitizens(){ if (!STREAM.on) return 0; const t = Date.now(); return [...STREAM.cit.values()].filter(c => !c.outcast && t - (c.lastA || 0) < 300000).length; }
-function fpWave(){ FP.wave++; const crowd = activeCitizens(); const n = FP.d.base + (FP.wave - 1) * FP.d.grow + crowd, hp = Math.round(FP.d.hp + (FP.wave - 1) * FP.d.hpGrow); FP.spawnLeft = n; FP.spawnHp = hp; FP.spawnT = 0;
+function fpWave(){ FP.wave++; glog(`wave ${FP.wave} fence ${Math.round(FP.hall)} rats ${rats.length} players ${NET.players.size} fps ${Math.round(STREAM.fps || 0)}`); const crowd = activeCitizens(); const n = FP.d.base + (FP.wave - 1) * FP.d.grow + crowd, hp = Math.round(FP.d.hp + (FP.wave - 1) * FP.d.hpGrow); FP.spawnLeft = n; FP.spawnHp = hp; FP.spawnT = 0;
   toast(`WAVE ${FP.wave}: ${n} angry rats${crowd ? ` (+${crowd} for the crowd)` : ''} are storming ${OUT.deployed ? 'your outpost' : 'the town'}!`); sfx.squeak(); }
 function updFreePlay(dt){
   if (!FP.on || tut.finished) return; const d = FP.d, wp = W.root.position;
@@ -1356,7 +1356,7 @@ const ZB = window.ZB = {
     c.vote = o.k; c.lastA = Date.now(); if (w){ if (!w.voted.has(c.key)){ c.pts += STREAM.cfg.ptsVote; c.votes++; } w.voted.set(c.key, o.k); } rankRoles(); return true; },   /* a vote between windows still sets their choice; points and attendance only count inside a window */
   hostVote(opt){ const o = FP_OPTS[opt - 1]; if (o){ FP.vote = o.k; if (STREAM.window) STREAM.window.host = o.k; } },
   openVote(){ if (STREAM.window || !FP.on) return; for (const p of NET.players.values()) p.vote = 0; STREAM.window = {t:STREAM.cfg.voteLen, voted:new Map(), host:FP.vote}; STREAM.freeze = true; sfx.pick(); },
-  closeVote(){ const w = STREAM.window; if (!w) return; STREAM.window = null; STREAM.freeze = false; STREAM.nextVote = STREAM.cfg.voteEvery;
+  closeVote(){ const w = STREAM.window; if (!w) return; glog('vote closed ' + JSON.stringify(ZB.tally())); STREAM.window = null; STREAM.freeze = false; STREAM.nextVote = STREAM.cfg.voteEvery;
     for (const c of STREAM.cit.values()){ if (c.outcast) continue; if (w.voted.has(c.key) || !c.everRole) c.missed = 0; else if (++c.missed >= STREAM.cfg.outcastAfter) makeOutcast(c); }   /* only citizens who have held a top-5 title can be cast out */
     rankRoles(); const t = ZB.tally(); const top = Object.entries(t).sort((a, b) => b[1] - a[1])[0];
     toast(top && top[1] ? `The town voted: ${FP_OPTS.find(o => o.k === top[0]).n}` : 'Nobody voted: the town hall keeps its plan'); },
@@ -1368,7 +1368,7 @@ const ZB = window.ZB = {
       crowd:activeCitizens(), cit:[...STREAM.cit.values()].map(c => ({everRole:c.everRole, name:c.name, plat:c.plat, pts:c.pts, role:c.role, missed:c.missed, outcast:c.outcast, vote:c.vote, body:!!c.bot}))}; },
   start(diff){ if (diff) SET.diff = diff; startStage(STAGES.findIndex(x => x.free)); helpEl.style.display = 'none'; if (paused) togglePause(true);
     STREAM.nextVote = STREAM.cfg.voteEvery; STREAM.saving = null; for (const c of STREAM.cit.values()){ c.bot = null; c.hat = null; if (!c.outcast) citBody(c); } rankRoles(); dressSeats(); },
-  goLive(pw){ netConnect(pw); },
+  goLive(pw){ netConnect(pw); glog('host go live'); }, takeLog(){ return GLOG.splice(0); },
   endGame(){ netSend({t:'bcast', m:{t:'ended'}}); setTimeout(() => { NET.status = 'offline'; NET.on = false; if (NET.ws) try { NET.ws.onclose = null; NET.ws.close(); } catch(e){} for (const id of [...NET.players.keys()]) removePlayer(id); }, 400); },
   pause(on){ if (on !== paused) togglePause(true); }, net(){ return {status:NET.status, players:[...NET.players.values()].map(p => ({name:p.name, kind:p.kind, pts:p.pts, sqT:Math.ceil(p.sqT)})), timers:NET.timers}; },
   kickPlayer(name){ for (const p of NET.players.values()) if (p.name === name) netSend({t:'kick', id:p.id}); },
@@ -1379,7 +1379,7 @@ function makeOutcast(c){ if (!c.bot && STREAM.seats && STREAM.seats.length){ c.r
   const b = c.bot; if (!b) return; if (b.body){ const bd = b.body; b.body = null; b.root.remove(bd.root); bd.carried = false; bd.root.position.copy(b.root.position); scene.add(bd.root); }
   b.state = 'outcast'; b.lead = null; b.root.scale.setScalar(1); if (c.hat){ b.root.remove(c.hat); c.hat = null; } b.root.remove(c.tag); c.tag = tagSprite('outcast ' + c.name, '#ff9a8a'); b.root.add(c.tag);
   b.path = [new THREE.Vector3(ROADS[Math.random() < 0.5 ? 0 : 1], 0, TOWN.z0 - 1), new THREE.Vector3(rnd(-12, 12), 0, -30), new THREE.Vector3(rnd(-12, 12), 0, -66)]; }
-function updStream(dt){
+function updStream(dt){ STREAM.fps = (STREAM.fps || 60) * 0.98 + (1 / Math.max(dt, 0.001)) * 0.02; STREAM.fpsT = (STREAM.fpsT || 0) + dt; if (STREAM.fpsT > 60){ STREAM.fpsT = 0; glog(`perf fps ${Math.round(STREAM.fps)} rats ${rats.length} mice ${MICE.length} players ${NET.players.size}`); }
   if (!STREAM.on || !FP.on) return;
   if (STREAM.window){ return; }
   STREAM.nextVote -= dt; if (STREAM.nextVote <= 0 && !tut.finished) ZB.openVote();
@@ -1401,12 +1401,12 @@ function setPlayerKind(p, kind){ const b = p.bot; if (p.kind === kind && b.model
   if (kind === 'squirrel'){ b.mouseRig = b.mouseRig || {model:b.model, mixer:b.mixer, A:b.A}; b.model.visible = false; if (!b.sqRig){ b.sqRig = makeSquirrelRig(); b.root.add(b.sqRig.model); } b.sqRig.model.visible = true; Object.assign(b, {model:b.sqRig.model, mixer:b.sqRig.mixer, A:b.sqRig.A, cur:'idle'}); b.tag.position.y = 2.1; }
   else { if (b.sqRig) b.sqRig.model.visible = false; if (b.mouseRig){ b.mouseRig.model.visible = true; Object.assign(b, {model:b.mouseRig.model, mixer:b.mouseRig.mixer, A:b.mouseRig.A, cur:'idle'}); } b.tag.position.y = 1.35; }
   for (const k in b.A) b.A[k].setEffectiveWeight(k === 'idle' ? 1 : 0); }
-function addPlayer(id, name){ if (NET.players.has(id)) return; const at = new THREE.Vector3(PILE.x + rnd(-1.5, 1.5), 0, PILE.z + 3);
+function addPlayer(id, name){ if (NET.players.has(id)) return; glog(`player join ${id} ${name}`); const at = new THREE.Vector3(PILE.x + rnd(-1.5, 1.5), 0, PILE.z + 3);
   const b = makeMouseBot(at); b.state = 'player'; b.pid = id; b.tag = tagSprite('▶ ' + name, '#8fd3ff'); b.root.add(b.tag);
   const p = {id, name, bot:b, kind:'mouse', pts:0, rats:0, since:0, kills:0, sqT:0, in:{mx:0, my:0}, stillT:0, cd:0, joined:Date.now(), hp:60, maxHp:60, dead:false, deadT:0}; b.player = p; NET.players.set(id, p);
   if (STREAM.on) ZB.join(name, 'web');
   toast(`🐭 ${name} joined from the website`); }
-function removePlayer(id){ const p = NET.players.get(id); if (!p) return; const b = p.bot; if (b.body) botDrop(b); scene.remove(b.root); const i = MICE.indexOf(b); if (i >= 0) MICE.splice(i, 1); NET.players.delete(id); toast(`${p.name} left`); }
+function removePlayer(id){ const p = NET.players.get(id); if (!p) return; glog(`player leave ${id} ${p.name} pts ${p.pts}`); const b = p.bot; if (b.body) botDrop(b); scene.remove(b.root); const i = MICE.indexOf(b); if (i >= 0) MICE.splice(i, 1); NET.players.delete(id); toast(`${p.name} left`); }
 function updPlayer(b, dt){ const p = b.player; if (!p) return; const sq = p.kind === 'squirrel';
   let mx = p.in.mx, my = p.in.my; const l = Math.hypot(mx, my); if (l > 1){ mx /= l; my /= l; }
   const sp = b.body ? (sq ? 2.4 : 2.0) / Math.max(1, b.body.size * 0.6) : (sq ? 4.4 : 3.4), moving = l > 0.12, pos = b.root.position;
@@ -1417,7 +1417,7 @@ function updPlayer(b, dt){ const p = b.player; if (!p) return; const sq = p.kind
   if (!moving && p.stillT > 0.35){
     if (!b.body){ let best = null, bd = 1.2; for (const c of bodies){ if (c.carried || c.flying || c.trapped || c.riding) continue; const d = Math.hypot(c.root.position.x - pos.x, c.root.position.z - pos.z); if (d < bd){ bd = d; best = c; } } if (best){ botGive(b, best); sfx.pick(); } }
     else if (b.body.fallen){ if (Math.hypot(pos.x - TENT.x, pos.z - TENT.z) < 2.6){ const bd = b.body; b.body = null; b.root.remove(bd.root); scene.remove(bd.mark); const i = bodies.indexOf(bd); if (i >= 0) bodies.splice(i, 1); setResp(RESP.n + RESCUE_RESPAWNS); p.pts += 3; burst(TENT.clone().setY(1), 0xffffff, 18, 3, 3); sfx.drop(); toast(`⛑ ${p.name} rescued a body: +${RESCUE_RESPAWNS} respawns`); } }
-    else if (Math.hypot(pos.x - PILE.x, pos.z - PILE.z) < 2.8){ const n = Math.max(1, Math.round(b.body.size)); botDrop(b); p.rats += n; p.since += n; p.pts += n; } }
+    else if (inPile(pos) || Math.hypot(pos.x - PILE.x, pos.z - PILE.z) < 3.2){ const n = Math.max(1, Math.round(b.body.size)); botDrop(b); p.rats += n; p.since += n; p.pts += n; glog(`player ${p.name} delivered ${n} (rats ${p.rats}, potion ${p.since}/${NET.cfg.potionAt})`); } }
   if (!moving && p.stillT > 0.4 && !b.body){ const t = repairTarget(pos); if (t) doRepair(t, dt); }
   if (sq){ p.cd -= dt; if (p.cd <= 0 && !b.body){ let best = null, bd = T.range * 0.85; for (const r of rats){ if (r.dead) continue; const d = r.root.position.distanceTo(pos); if (d < bd){ bd = d; best = r; } }
       if (best){ p.cd = 1.1; const from = pos.clone().setY(0.9), dir = best.root.position.clone().setY(0.5).sub(from).normalize(); b.face = Math.atan2(dir.x, dir.z); fireFrom(from.addScaledVector(dir, 0.6), dir, 'player', p); } } }
@@ -1472,6 +1472,7 @@ function netConnect(pw){ if (NET.ws) try { NET.ws.onclose = null; NET.ws.close()
     else if (m.t === 'hostbad'){ NET.status = 'wrong password'; }
     else if (m.t === 'kicked'){ NET.on = false; NET.status = 'another host tab took over'; }
     else if (m.t === 'vjoin') addPlayer(m.id, m.name);
+    else if (m.t === 'vlog'){ const p = NET.players.get(m.id); glog(`viewer ${p ? p.name : m.id}: ${String(m.m).slice(0, 300)}`); }
     else if (m.t === 'vleave') removePlayer(m.id);
     else if (m.t === 'in'){ const p = NET.players.get(m.id); if (p){ p.in.mx = +m.mx || 0; p.in.my = +m.my || 0; } }
     else if (m.t === 'act'){ const p = NET.players.get(m.id); const vm = p && /^v([1-5])$/.exec(m.a || ''); if (vm){ ZB.join(p.name, 'web'); ZB.vote(p.name, 'web', +vm[1]); p.vote = +vm[1]; } else if (p && m.a === 'drop' && p.bot.body){ const bd = p.bot.body; p.bot.body = null; p.bot.root.remove(bd.root); bd.carried = false; bd.root.position.copy(p.bot.root.position); bd.root.rotation.set(0, 0, Math.PI/2); scene.add(bd.root); } } };
@@ -1491,6 +1492,7 @@ function vwApplyWorld(m){ if (m.opts) VIEWER.opts = m.opts;
   while (VIEWER.out < m.out){ VIEWER.out++; try { OUT.box = makeOutpostBox(); if (VIEWER.out === 1) deployOutpost(); else if (VIEWER.out === 2) deployL2(); else deployL3(); } catch(e){} }
 }
 function vwTick(dt){
+  cone.visible = aimLine.visible = guide.visible = false; if (toastT > 0){ toastT -= dt; if (toastT <= 0) toastEl.style.opacity = 0; }
   const S2 = VIEWER.snap; if (!S2 || !S2.h || !S2.r || !S2.p){ VIEWER.ang = (VIEWER.ang || 0) + dt * 0.1; camera.position.set(Math.sin(VIEWER.ang) * 18, 15, 12 + Math.cos(VIEWER.ang) * 18); camera.lookAt(0, 0, 8); return; }
   // the host squirrel (weaselwonder)
   const h = S2.h; vwLerp(W.root.position, h[0], h[1], dt); W.root.rotation.y = vwAngle(W.root.rotation.y, h[2], dt);
@@ -1522,6 +1524,7 @@ function vwTick(dt){
   vwVote(S2); pauseEl.style.display = S2.paused && !(S2.vote > 0) ? 'flex' : 'none';
   // corpse pile mound
   while (pile.length < S2.pile) pile.push({root:new THREE.Group()}); pile.length = Math.min(pile.length, S2.pile); updMound();
+  VIEWER.pileB = VIEWER.pileB || []; vwPool(VIEWER.pileB, Math.min(S2.pile, PILE_CAP || 30), vwBody); VIEWER.pileB.forEach((c, i) => { if (!c.root.visible) return; if (c.slot !== i){ c.slot = i; const pl = pileSlot(i), sl = pl.userData; c.root.position.copy(pl); c.root.rotation.set(sl.tilt || 0, sl.ry || 0, Math.PI/2); } });
   // camera follows you (or weaselwonder while you wait)
   const mine = VIEWER.players.get(VIEWER.id), tgt = mine ? mine.bot.root.position : W.root.position, z = 1 + VIEWER.zoom * 0.8;
   camera.position.lerp(new THREE.Vector3(tgt.x, 17 * z, tgt.z + 8 * z), Math.min(1, dt * 6)); camera.lookAt(camera.position.x, 0, camera.position.z - 8 * z);
@@ -1547,6 +1550,7 @@ function vwVote(S2){ const open = S2.vote > 0 && VIEWER.status === 'playing'; vo
     VIEWER.opts.map(o => { const pc = tot ? Math.round((t[o.k] || 0) / tot * 100) : 0; return `<button data-v="${o.i}" style="pointer-events:auto;position:relative;display:block;width:calc(100% - 24px);margin:6px 12px;padding:12px;border-radius:12px;border:3px solid ${mine === o.i ? '#ffe08a' : '#3a3025'};background:#2a221a;color:#f3ead8;font:800 18px system-ui;text-align:left;overflow:hidden;cursor:pointer"><i style="position:absolute;inset:0 auto 0 0;width:${pc}%;background:#5f8a3e66"></i><span style="position:relative">${o.i}. ${o.icon} ${o.n}</span><span style="position:relative;float:right;color:#e8c37a">${tot ? pc + '%' : ''}</span></button>`; }).join('');
   voteEl.querySelectorAll('button').forEach(bt => { const go2 = ev => { ev.preventDefault(); ev.stopPropagation(); VIEWER.myVote = +bt.dataset.v; vwSend({t:'act', a:'v' + bt.dataset.v}); VIEWER.voteKey = ''; }; bt.addEventListener('click', go2); bt.addEventListener('touchend', go2); }); }
 addEventListener('keydown', e => { if (VIEWER.on && voteEl.style.display === 'block' && /^[1-5]$/.test(e.key)){ VIEWER.myVote = +e.key; vwSend({t:'act', a:'v' + e.key}); VIEWER.voteKey = ''; } });
+addEventListener('error', e => { if (VIEWER.on){ const t = Date.now(); if (t - (VIEWER.errT || 0) > 5000){ VIEWER.errT = t; vwSend({t:'log', m:(e.message || 'error') + ' @' + (e.lineno || '') + ' ' + navigator.userAgent.slice(0, 80)}); } } });
 function vwSend(o){ if (VIEWER.ws && VIEWER.ws.readyState === 1) VIEWER.ws.send(JSON.stringify(o)); }
 const meEl = document.createElement('div'); meEl.id = 'me';
 meEl.style.cssText = 'pointer-events:auto;cursor:pointer;position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:7;min-width:300px;max-width:94vw;background:#1d1813ee;border:3px solid #e8c37a;border-radius:16px;padding:8px 14px;color:#f3ead8;font:700 15px system-ui;text-align:center;display:none';
@@ -1576,7 +1580,7 @@ function vwConnect(name){
     else if (m.t === 'afk'){ VIEWER.status = 'waiting'; toast('You were idle, so you went back to the queue'); }
     else if (m.t === 'removed'){ VIEWER.status = `Removed by the host for ${m.mins} minutes`; }
     else if (m.t === 'badname'){ VIEWER.status = m.reason; }
-    else if (m.t === 'me'){ const was = VIEWER.me && VIEWER.me.kind; VIEWER.me = m; if (was === 'mouse' && m.kind === 'squirrel') toast('🧪 You drank a potion: you are a squirrel!'); }
+    else if (m.t === 'me'){ const was = VIEWER.me && VIEWER.me.kind, wasR = VIEWER.me ? VIEWER.me.rats : m.rats; VIEWER.me = m; if (m.rats > wasR){ toast(`+${m.rats - wasR} rat${m.rats - wasR > 1 ? 's' : ''} for the town! ${m.since}/${m.need} to a potion`); sfx.drop(); } if (was === 'mouse' && m.kind === 'squirrel') toast('🧪 You drank a potion: you are a squirrel!'); }
     else if (m.t === 'world'){ vwApplyWorld(m); }
     else if (m.t === 'ended'){ VIEWER.ended = true; meEl.style.display = 'none'; voteEl.style.display = 'none'; pauseEl.style.display = 'flex'; pauseEl.innerHTML = '🏁 GAME ENDED<small style="font:700 16px system-ui;color:#f3ead8;margin-top:8px">Thanks for playing! Back to the start…</small>'; try { ws.onclose = null; ws.close(); } catch(e3){} setTimeout(() => location.href = '/', 3500); return; }
     vwHud(); };
@@ -1760,7 +1764,8 @@ function readAim(dt){
 
 // ---------- HUD helpers ----------
 const toastEl = document.getElementById('toast'); let toastT = 0;
-function toast(t){ toastEl.textContent = t; toastEl.style.opacity = 1; toastT = 1.6; }
+const GLOG = []; function glog(m){ GLOG.push(new Date().toISOString().slice(11, 19) + ' ' + m); if (GLOG.length > 3000) GLOG.splice(0, 1000); }
+function toast(t){ toastEl.textContent = t; toastEl.style.opacity = 1; toastT = 1.6; glog('toast: ' + t); }
 const pileEl = document.getElementById('pileN');
 function setPile(){ pileEl.textContent = pile.length; pileEl.classList.add('bump'); setTimeout(()=>pileEl.classList.remove('bump'), 160); }
 const hpFill = document.getElementById('hpfill'), hurtEl = document.getElementById('hurt');
