@@ -43,6 +43,12 @@
   #top5 li em{font-style:normal;color:var(--gold);font-weight:900} #top5 li small{display:block;color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
   #top5 .f{font-size:13px;color:var(--dim)} #top5 .f b{color:var(--gold)}
   #plug{position:absolute;right:10px;bottom:70px;background:#14100cc8;border:1px solid #e8c37a88;border-radius:10px;padding:5px 10px;font:700 13px system-ui;color:var(--dim)} #plug b{color:var(--gold)}
+  #pip{position:absolute;right:12px;bottom:124px;width:210px;height:230px;border:4px solid var(--gold);border-radius:22px;box-shadow:0 0 0 3px #000,0 12px 34px #000c,inset 0 0 40px #000c;
+    background:radial-gradient(ellipse at 50% 35%,#3b4a3a 0%,#1f281f 55%,#0d110d 100%),repeating-linear-gradient(135deg,#ffffff08 0 10px,#0000 10px 20px);background-blend-mode:overlay}
+  #pip::before{content:'';position:absolute;inset:8px;border:1px dashed #e8c37a55;border-radius:15px}
+  #pip .on{position:absolute;left:12px;top:10px;background:#a8322a;color:#fff;font:900 11px system-ui;letter-spacing:.14em;padding:3px 8px;border-radius:8px;box-shadow:0 2px 6px #000}
+  #pip .name{position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);background:var(--gold);color:#1b140c;font:400 20px 'Black Ops One',system-ui;padding:4px 14px;border-radius:10px;border:2px solid #000;white-space:nowrap}
+  body.nopip #pip{display:none}
   #voteBig{position:absolute;left:24px;right:24px;top:150px;display:none;background:#16110cf2;border:4px solid var(--gold);border-radius:24px;padding:18px 20px;box-shadow:0 20px 60px #000}
   #voteBig .vh{display:flex;justify-content:space-between;align-items:center;background:#a8322a;margin:-18px -20px 12px;padding:10px 20px;border-radius:20px 20px 0 0;font:400 46px 'Black Ops One',system-ui;color:#fff}
   #voteBig .vh b{font:400 54px 'Black Ops One',system-ui;color:#ffe08a}
@@ -87,6 +93,7 @@
   <iframe id="game" src="/tutorial/?mode=stream" allow="autoplay; fullscreen"></iframe>
   <div id="pv">
   <div id="top5"><div class="h">TOP CITIZENS</div><ol id="top5List"></ol><div class="f">type <b>join</b> to play</div></div>
+  <div id="pip"><span class="on">● LIVE</span><div class="name">WEASELWONDER</div></div>
   <div id="plug">PLAY WITH ME · <b>www.weaselwonder.com</b></div>
   <div id="voteBig"><div class="vh"><span>VOTE NOW</span><b id="vbT">60</b></div>
     <div class="vx">The town hall builds what wins.<br>Type the <b>number</b> in chat!</div>
@@ -107,6 +114,8 @@
   <h3>Game controls</h3>
   <div><button id="gPause">⏸ Pause / resume (P)</button><button id="gRestart">↺ Restart the town</button><button id="gEnd" style="background:#a8322a;color:#fff">⏹ End game &amp; log out</button></div>
   <div class="st">End game tells every website player "Game ended" and sends them back to the home page, then logs you out of the stream page.</div>
+  <h3>Layout</h3>
+  <label>Cam frame in the portrait view (C) <input id="cPip" type="checkbox" style="width:auto"></label>
   <h3>Chat sources</h3>
   <label>Twitch channel <input id="twCh" placeholder="weaselwonder"></label>
   <div><button id="twGo">Connect Twitch</button> <span class="st" id="twSt">not connected</span></div>
@@ -151,6 +160,11 @@ const save = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catc
 // scale the 1920x1080 stage to the window (OBS browser source at 1920x1080 shows it 1:1)
 function fit(){ const k = Math.min(innerWidth / 1920, innerHeight / 1080); $('stage').style.transform = `scale(${k})`; }
 addEventListener('resize', fit); fit();
+// portrait cam frame (bottom right of the game column): place the camera over it in LIVE Studio / OBS
+if (S.pip === undefined) S.pip = true;
+const applyPip = () => { document.body.classList.toggle('nopip', !S.pip); const c = $('cPip'); if (c) c.checked = !!S.pip; };
+document.addEventListener('DOMContentLoaded', () => { applyPip(); $('cPip').addEventListener('change', e => { S.pip = e.target.checked; save(); applyPip(); }); });
+addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'c' || e.key === 'C'){ S.pip = !S.pip; save(); applyPip(); } });
 const G = () => $('game').contentWindow, Z = () => G() && G().ZB;
 // ---------- chat feed ----------
 const PF = {tt:'🎵', tw:'💜', test:'🧪', sys:''};
