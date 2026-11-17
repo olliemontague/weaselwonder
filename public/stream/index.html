@@ -100,6 +100,7 @@
 </div>
 <div id="startbox"><div class="card"><h1>ZOMBUILD</h1><p>Stream mode. Connect chat in Settings, then start.</p>
   <button id="startGo">▶ Start the town</button><button id="startSet">⚙ Settings</button><div class="st" id="startSt">Loading the game…</div></div></div>
+<div id="hiddenWarn" style="display:none;position:fixed;left:0;right:0;top:0;z-index:40;background:#a8322a;color:#fff;font:800 18px system-ui;padding:8px;text-align:center">⚠ This tab was in the background, so the game slowed down for players. Keep the stream page in its own window (or in OBS) while live.</div>
 <button id="setbtn">⚙ weaselwonder settings (S)</button>
 <div id="settings">
   <h2>Weaselwonder settings</h2>
@@ -212,6 +213,8 @@ function refresh(){
   if (s.lost && !refresh.ended){ refresh.ended = true; line('💀 The town hall fell. Restarting soon…', 'bad'); }
 }
 setInterval(refresh, 500);
+document.addEventListener('visibilitychange', () => { const z = Z(); if (document.hidden && z && z.net && z.net().status === 'live') $('hiddenWarn').style.display = 'block'; });
+$('hiddenWarn').onclick = () => $('hiddenWarn').style.display = 'none';
 // game log: uploaded every minute (and on End game) so problems can be looked at afterwards. Kept 14 days
 function flushLog(){ const z = Z(); if (!z || !z.takeLog) return; const lines = z.takeLog(); if (!lines.length) return; fetch('/api/log', {method:'POST', body:lines.join('\n')}).catch(() => {}); }
 setInterval(flushLog, 60000); addEventListener('beforeunload', flushLog);

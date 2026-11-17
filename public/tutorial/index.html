@@ -158,7 +158,7 @@ const setHint = t => { if (hintEl.textContent !== t) hintEl.textContent = t; };
 const renderer = new THREE.WebGLRenderer({antialias:true});
 const NORENDER = new URLSearchParams(location.search).has('norender');
 const LITE = new URLSearchParams(location.search).get('mode') === 'play' && (matchMedia('(pointer:coarse)').matches || innerWidth < 900);
-renderer.setPixelRatio(LITE ? 1 : Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(LITE || new URLSearchParams(location.search).get('mode') === 'stream' ? 1 : Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = !LITE;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1803,6 +1803,7 @@ function readAim(dt){
 
 // ---------- HUD helpers ----------
 const toastEl = document.getElementById('toast'); let toastT = 0;
+document.addEventListener('visibilitychange', () => { if (typeof glog === 'function') glog('host tab ' + (document.hidden ? 'HIDDEN (game slows down)' : 'visible')); });
 const GLOG = []; function glog(m){ GLOG.push(new Date().toISOString().slice(11, 19) + ' ' + m); if (GLOG.length > 3000) GLOG.splice(0, 1000); }
 function toast(t){ toastEl.textContent = t; toastEl.style.opacity = 1; toastT = 1.6; glog('toast: ' + t); }
 const pileEl = document.getElementById('pileN');
