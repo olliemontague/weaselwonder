@@ -66,3 +66,10 @@
 ## r17 · 2026-11-17
 - Portrait view: cam frame bottom right of the game column (gold border, dark frosted backdrop, LIVE tag, WEASELWONDER nameplate), just above the "PLAY WITH ME" plug. Place the camera over it in TikTok LIVE Studio or OBS.
 - Toggle it in weaselwonder settings (Layout) or press C on the stream page. On by default.
+
+## r18 · 2026-11-20 (new site)
+- New home page: offline shows game cards (ZombieRats, CrazyChess, Zombie Empire, Corpse Crafter) and Discord over a 30 s background loop from the first Corpse Crafter stream; live shows a featured card for the game weasel is playing.
+- Game pages at /games/<slug>/: back bar, offline play buttons (CrazyChess and Zombie Empire show "Soon" placeholders), how it works, screenshots, past streams, sticky LIVE bar when weasel is live with that game.
+- /streamer/: password protected (same login as /stream). Pick the game, Go live, Launch.
+- /api/live: GET returns {live, game}; POST (stream login only) sets or clears it, expires after 12 hours. Pages check it every 20 s.
+- Game list lives in public/assets/games.js. Unchanged: /tutorial/, /play/, /stream/, /corpsecrafter/.
