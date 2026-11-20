@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script src="/assets/ww-session.js"></script>
+<head><script src="/assets/ww-session.js"></script><script src="/assets/ww-cambg.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>ZombieRats v1.3 · stream</title>
@@ -3485,6 +3485,7 @@ function zrHud(show){
     { const card = document.querySelector('#settings .card'), btns = card.querySelector('.btns'); const sec = document.createElement('div'); sec.id = 'zrSet';
       sec.innerHTML = '<h3>ZombieRats test</h3><label class="row"><span><b>Simulated chat</b><i>Fake viewers commenting and typing numbers (off on a real stream)</i></span><select id="zrChatSel"><option value="off">Off</option><option value="quiet">Quiet</option><option value="typical">Typical</option><option value="busy">Busy</option></select></label>' +
         '<label class="row"><span><b>Bot hunters</b><i>Simulated players who lure rats home. Applies on restart</i></span><select id="zrHuntSel"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>';
+      if (window.WWCamBg){ const row = document.createElement('label'); row.className = 'row'; row.innerHTML = '<span><b>Camera background</b><i>Behind your webcam in the Twitch camera frame (same choice as /streamer)</i></span>'; row.appendChild(WWCamBg.select({game:'zombierats'})); sec.appendChild(row); }
       card.insertBefore(sec, btns); const cs = sec.querySelector('#zrChatSel'), hs = sec.querySelector('#zrHuntSel'); cs.value = ZR.cfg.chat; hs.value = String(ZR.cfg.hunters);
       cs.onchange = () => { ZR.cfg.chat = cs.value; }; if (/(^|\.)weaselwonder\.com$/.test(location.hostname)){ cs.value = 'off'; cs.disabled = true; cs.title = 'Never simulated on weaselwonder.com'; } hs.onchange = () => { ZR.cfg.hunters = +hs.value; }; E.set = sec; }
     for (const id of ['pile', 'hpwrap']) { const el = document.getElementById(id); if (el && id === 'pile') el.style.display = 'none'; }
@@ -3656,6 +3657,7 @@ function zrDesktopFrame(){ const E = ZRS.els; if (E.cam) return;
   const mk = (css, html) => { const el = document.createElement('div'); el.style.cssText = 'position:fixed;z-index:19;pointer-events:none;' + css; el.innerHTML = html || ''; document.body.appendChild(el); return el; };
   E.cam = mk('left:1456px;top:760px;width:440px;height:248px;box-sizing:border-box;border:4px solid #e8c37a;border-radius:18px;box-shadow:0 0 0 3px #000a,0 10px 30px #0008;background:transparent',
     '<span style="position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);background:#e8c37a;color:#1b140c;font:900 20px system-ui;padding:4px 18px;border-radius:10px;letter-spacing:.06em;border:2px solid #000;white-space:nowrap">WEASELWONDER</span>');
+  if (window.WWCamBg) WWCamBg.attach(E.cam, {game:'zombierats'}); // camera background (Twitch only)
   E.chat = mk(`left:1456px;top:176px;width:440px;height:560px;overflow:hidden;padding:10px 14px;box-sizing:border-box;font:600 16px system-ui;line-height:1.35;${ZRL_GLASS}`);
   E.how = mk(`left:24px;top:680px;width:440px;height:376px;padding:16px 20px 76px;box-sizing:border-box;font:700 16px system-ui;line-height:1.45;${ZRL_GLASS}`,
     '<div style="font:900 15px system-ui;color:#e8c37a;letter-spacing:.1em">HOW TO PLAY</div>' +
@@ -3699,7 +3701,8 @@ function zrHostDraw(){ const E = ZRS.els; if (!E.host) return;
   E.host.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#e8c37a;letter-spacing:.08em">HOST PANEL · not for capture (H hides)</b>${b('close', '✕')}</div>
    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${b('portrait', '📱 Open portrait window (O)', true)}${b('pause', '❚❚ Pause (P)')}${b('restart', '↺ Restart')}${b('clean', ZRS.clean ? '🎥 Clean: ON' : '🎥 Clean: off')}${b('guides', ZRS.guides ? '▦ Guides: ON (G)' : '▦ Guides: off (G)')}${b('camf', ZRS.camFrame ? '📷 Camera frame: ON (V)' : '📷 Camera frame: off (V)')}<button data-k="endgame" style="font:800 14px system-ui;padding:8px 12px;border-radius:10px;border:2px solid #000;background:#a8322a;color:#fff;cursor:pointer">⏹ End game</button></div>
    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center">
-   <span>Simulated chat</span>${ZRS.live ? '<i style="opacity:.75">off (never on weaselwonder.com)</i>' : sel('chat', ['off', 'quiet', 'typical', 'busy'], ZR.cfg.chat)}
+   <span>Camera background</span><span data-cambg></span>
+    <span>Simulated chat</span>${ZRS.live ? '<i style="opacity:.75">off (never on weaselwonder.com)</i>' : sel('chat', ['off', 'quiet', 'typical', 'busy'], ZR.cfg.chat)}
    <span>Bot hunters (restart)</span>${sel('hunters', [0, 1, 2, 3, 4], ZR.cfg.hunters)}
    <span>Stream delay (sim)</span>${sel('delay', [0, 3, 6, 10, 15], ZR.cfg.delay)}
    <span>Twitch channel</span><span><input data-k="twch" value="${ZRS.twCh || 'weaselwonder'}" style="width:130px;font:700 14px system-ui;background:#2a221a;color:#f3ead8;border:2px solid #3a3025;border-radius:8px;padding:5px"> ${b('tw', 'Connect')} <i style="color:#b9ad97">${ZRS.twStatus || ''}</i></span>
@@ -3707,6 +3710,7 @@ function zrHostDraw(){ const E = ZRS.els; if (!E.host) return;
    <span>TikTok (TikFinity)</span><span>${b('tf', 'Connect')} <i style="color:#b9ad97">${ZRS.tfStatus || 'TikFinity app must be running on this PC'}</i></span>
    <span>Test events</span><span>${b('follow', '💛 Follow')} ${b('rose', '🌹 Rose')} ${b('say', '💬 Comment (Enter)')}</span></div>
    <div style="color:#b9ad97;font-size:12px;margin-top:8px">Capture this window (1920×1080) for landscape and the portrait window for TikTok portrait. Add ?clean to the address to start with host controls hidden.</div>`;
+  { const cb = E.host.querySelector('[data-cambg]'); if (cb && window.WWCamBg){ const sel = WWCamBg.select({game:'zombierats'}); sel.style.cssText = 'font:600 13px system-ui;padding:4px 6px;border-radius:8px'; cb.appendChild(sel); } }
   E.host.querySelectorAll('[data-k]').forEach(el => { const k = el.dataset.k;
     if (el.tagName === 'SELECT') el.onchange = () => { if (k === 'chat') ZR.cfg.chat = el.value; if (k === 'hunters') ZR.cfg.hunters = +el.value; if (k === 'delay') ZR.cfg.delay = +el.value; zrHostDraw(); };
     else if (el.tagName === 'INPUT') { el.onkeydown = e => e.stopPropagation(); el.oninput = () => ZRS.twCh = el.value; }

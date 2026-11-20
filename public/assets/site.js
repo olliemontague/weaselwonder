@@ -222,6 +222,9 @@
               <div class="row"><button class="btn">Save</button><button type="button" class="btn ghost" id="showkey">Show key</button><span id="chatmsg" class="sub" style="margin:0"></span></div>
             </form>
             <p class="sub" style="font-size:14px">TikTok chat and gifts come through tik.tools while you are live on TikTok. Twitch chat needs no key.</p></div>
+          <div class="chatset" id="cambgset"><h2 class="t" style="font-size:24px">Camera background</h2>
+            <p class="sub">Shown behind your webcam in the Twitch camera frame of every game (TikTok stays as you only). Needs background removal on your OBS webcam. Changes apply to the open game tab straight away.</p>
+            <div id="cambgpick" class="cbpick"></div></div>
           <div class="devnote">Prototype: Go live here flips the mock state, so open the home page to see the live view.</div>
         </div></section>`;
         // Opens the game's host view in a new tab (so it is never popup-blocked) and marks the site live at the same moment.
@@ -237,6 +240,14 @@
           setLive(slug);
         }));
         m.querySelectorAll("[data-end]").forEach(b => b.onclick = () => endGame(b.dataset.end, b));
+        // camera background picker (shared with every game's settings through /assets/ww-cambg.js)
+        const cbp = document.getElementById("cambgpick");
+        if (cbp && window.WWCamBg) {
+          const drawCb = () => { const cur = WWCamBg.get(); cbp.innerHTML = WWCamBg.LIST.map(x => `<button type="button" class="cbopt${x.id === cur ? " on" : ""}" data-cb="${x.id}">
+              <span class="cbimg" style="${x.id === "auto" || x.id === "none" ? "" : `background-image:url(/assets/cambg/${x.id}-thumb.webp)`}">${x.id === "auto" ? "🎮" : x.id === "none" ? "∅" : ""}</span><b>${esc(x.name)}</b></button>`).join("");
+            cbp.querySelectorAll("[data-cb]").forEach(b => b.onclick = () => { WWCamBg.set(b.dataset.cb); drawCb(); }); };
+          drawCb(); window.addEventListener("storage", e => { if (e.key === "ww_cambg") drawCb(); });
+        }
         document.getElementById("go-off").onclick = () => {
           if (live.live && !confirm("End the stream? The live game ends and the site goes offline.")) return;
           if (live.live && window.WWSession) WWSession.endGame(live.game);

@@ -231,3 +231,9 @@ body.live-here .ghero .ctas,body.live-here .ghero .devnote{display:none}
 .cform{display:grid;gap:12px;max-width:560px}
 .cform label{display:grid;gap:6px;font-weight:700;font-size:14px;color:var(--bone)}
 .cform input{font:16px Inter,sans-serif;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.35);color:var(--ink)}
+
+.cbpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:8px}
+.cbopt{display:flex;flex-direction:column;gap:6px;padding:6px;border-radius:12px;border:2px solid rgba(232,195,122,.25);background:rgba(0,0,0,.25);color:inherit;cursor:pointer;text-align:left;font:inherit}
+.cbopt.on{border-color:#e8c37a;box-shadow:0 0 0 2px rgba(232,195,122,.35)}
+.cbopt .cbimg{display:flex;align-items:center;justify-content:center;aspect-ratio:16/9;border-radius:8px;background:#1b140c center/cover;font-size:28px}
+.cbopt b{font-size:13px}

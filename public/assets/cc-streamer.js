@@ -76,3 +76,22 @@
     if (++n > 40) clearInterval(iv);
   }, 500);
 })();
+
+/* Camera background (Twitch only): the backdrop picked on /streamer, painted inside the cam frame, with a picker in the Stream settings. */
+(function () {
+  if (!location.pathname.startsWith("/corpsecrafter/weasel")) return;
+  function go() {
+    const f = document.querySelector(".camframe"); if (!f || !window.WWCamBg) return;
+    WWCamBg.attach(f, { game: "corpse-crafter", radius: "10px" });
+    const grid = document.getElementById("dFrame") && document.getElementById("dFrame").parentElement;
+    if (grid && !document.getElementById("dCamBg")) {
+      const w = document.createElement("label"); w.id = "dCamBg"; w.style.cssText = "grid-column:1/-1;display:flex;gap:8px;align-items:center;font-size:13px";
+      w.textContent = "Camera background "; const sel = WWCamBg.select({ game: "corpse-crafter" }); sel.style.flex = "1"; w.appendChild(sel); grid.appendChild(w);
+    }
+  }
+  function load() {
+    if (window.WWCamBg) return go();
+    const s = document.createElement("script"); s.src = "/assets/ww-cambg.js"; s.onload = go; document.head.appendChild(s);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", load); else load();
+})();
