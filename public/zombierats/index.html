@@ -3594,7 +3594,8 @@ function zrTiktools(){ const u = String(ZRS.saved.ttUser || '').replace(/^@/, ''
     else if (ev === 'follow' || (ev === 'social' && /follow/i.test(d.displayType || ''))) zrFollow(nm, 'tt');
     else if (ev === 'gift'){ if (d.giftType === 1 && !d.repeatEnd) return; zrGift(nm, (d.diamondCount || 1) * (d.repeatCount || 1), 'tt', d.giftName); } };
   ws.onerror = () => { ZRS.ttStatus = 'error (wrong key, or @' + u + ' is not live)'; zrHostDraw(); };
-  ws.onclose = ev => { ZRS.ttStatus = `disconnected (${ev.code})${ev.code === 4005 ? ': not live yet' : ''}`; zrHostDraw(); }; }
+  ws.onclose = ev => { if (ZRS.srcs.tt !== ws) return; ZRS.ttStatus = `disconnected (${ev.code}${ev.code === 4401 ? ': key refused, check /streamer' : ': not live on TikTok yet?'}), retrying in 10s`; zrHostDraw();
+    clearTimeout(ZRS.ttRetry); ZRS.ttRetry = setTimeout(() => { if (ZRS.srcs.tt === ws) zrTiktools(); }, 10000); }; }
 if (ZRS.saved.twCh && !ZRS.twCh) ZRS.twCh = ZRS.saved.twCh;
 // simulated follows and roses ride on the simulated chat, delayed like the real stream
 { const tick0 = zrSim.tick.bind(zrSim);
@@ -3745,7 +3746,10 @@ addEventListener('keydown', e => { if (!ZR.on || !started || document.activeElem
   else if (e.code === 'KeyG'){ ZRS.guides = !ZRS.guides; zrStreamApply(); }
   else if (e.code === 'KeyV'){ ZRS.camFrame = !ZRS.camFrame; zrStreamApply(); } });
 // connect any chat sources asked for in the address once the game starts
-ZRS.boot = () => { zrStreamApply(); if (ZRS.booted) return; ZRS.booted = true; if (ZRS.q.get('twitch')){ ZRS.twCh = ZRS.q.get('twitch'); zrTwitch(ZRS.twCh); } if (ZRS.q.has('tikfinity')) zrTikfinity(); if (ZRS.q.has('tiktools')) zrTiktools(); };
+ZRS.boot = () => { zrStreamApply(); if (ZRS.booted) return; ZRS.booted = true; if (ZRS.q.get('twitch')){ ZRS.twCh = ZRS.q.get('twitch'); zrTwitch(ZRS.twCh); } if (ZRS.q.has('tikfinity')) zrTikfinity(); if (ZRS.q.has('tiktools')) zrTiktools();
+  if (ZRS.live){ // live site: connect the /streamer chat settings straight away
+    if (!ZRS.srcs.tw){ ZRS.twCh = ZRS.saved.twCh || 'weaselwonder'; zrTwitch(ZRS.twCh); }
+    if (!ZRS.srcs.tt && !ZRS.q.has('tikfinity') && ZRS.saved.ttUser && ZRS.saved.ttKey) zrTiktools(); } };
 // TikTok portrait: draw into the session's portrait window whenever /streamer has one open (reconnects by itself)
 if (window.WWStage) WWStage.attach('zombierats', api => { const c = api.claim('zombierats'); ZRS.portrait = null; zrPortraitOpen(c.win); return c.token; });
 window.ZRS = ZRS; Object.assign(window.ZRF, {zrPortraitOpen, zrPortraitRender, zrFollow, zrGift, zrHostToggle});

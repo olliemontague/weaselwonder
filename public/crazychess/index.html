@@ -1510,10 +1510,12 @@ if(document.body.className==='host'){
   // ---------- real chat: Twitch (read-only IRC), TikTok via tik.tools or TikFinity ----------
   const conn = { twitch: 'off', tiktok: 'off' };
   function streamSettings() { try { return JSON.parse(localStorage.getItem('zb_stream_settings') || '{}'); } catch (e) { return {}; } }
+  let twWs = null;
   function connectTwitch(ch) {
     if (!ch) return; ch = ch.replace(/^#/, '').toLowerCase();
     try {
-      const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); conn.twitch = 'connecting';
+      if (twWs) try { twWs.onclose = null; twWs.close(); } catch (er) {}   // one Twitch link at a time (no doubled messages)
+      const ws = twWs = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); conn.twitch = 'connecting';
       ws.onopen = () => { ws.send('CAP REQ :twitch.tv/tags'); ws.send('PASS SCHMOOPIIE'); ws.send('NICK justinfan' + Math.floor(1e4 + rand() * 8e4)); ws.send('JOIN #' + ch); conn.twitch = 'live #' + ch; hostUI(); };
       ws.onmessage = e => String(e.data).split('\r\n').forEach(line => {
         if (line.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
@@ -1537,9 +1539,17 @@ if(document.body.className==='host'){
         const u = data.user || data; const name = u.nickname || u.uniqueId || data.nickname || data.uniqueId; const text = data.comment || data.message || data.text;
         if (name && text) onChat('tiktok', name, text);
       };
-      ws.onclose = () => { conn.tiktok = 'closed'; hostUI(); };
+      ws.onclose = e => {
+        if (ttWs !== ws) return;          // replaced by a newer connection
+        // tik.tools closes the link when we are not live on TikTok (yet) or the key is refused: keep trying every 10 s
+        const why = e && e.code === 4401 ? 'key refused, check it on /streamer' : 'not live on TikTok yet?';
+        conn.tiktok = 'closed (' + (e ? e.code : '?') + ', ' + why + '), retrying in 10s'; hostUI();
+        clearTimeout(ttRetry); ttRetry = setTimeout(() => { if (ttWs === ws) connectTikTok(user, key, tikfinity); }, 10000);
+      };
+      if (ttWs) { const old = ttWs; ttWs = ws; try { old.close(); } catch (er) {} } else ttWs = ws;
     } catch (e) { conn.tiktok = 'error'; }
   }
+  let ttWs = null, ttRetry = 0;
 
   // ---------- game flow ----------
   function newGame(now) {
@@ -1813,8 +1823,9 @@ if(document.body.className==='host'){
   window.CCHost = { get stage() { return stage; }, get open() { return open; }, control, get g() { return g; }, get phase() { return phase; }, get players() { return players; }, get rep() { return rep; }, OPT, onChat, resolveTurn: () => resolveTurn(performance.now()), view: () => view(performance.now()), openPortrait, openPlayer, kids };
   applyOpt(); fitScene();
   const s0 = performance.now(); newGame(s0); if (!CLEAN) toggleDrawer(true);
-  const ss = streamSettings(); if (Q.get('twitch') || ss.twCh && Q.has('connect')) connectTwitch(Q.get('twitch') || ss.twCh);
-  if (Q.has('tikfinity')) connectTikTok(null, null, true); else if (ss.ttUser && ss.ttKey && Q.has('connect')) connectTikTok(ss.ttUser, ss.ttKey);
+  const ss = streamSettings(); const ON_SITE = /(^|\.)weaselwonder\.com$/.test(location.hostname);   // live site: connect the /streamer chat settings straight away
+  if (Q.get('twitch') || ss.twCh && (Q.has('connect') || ON_SITE)) connectTwitch(Q.get('twitch') || ss.twCh);
+  if (Q.has('tikfinity')) connectTikTok(null, null, true); else if (ss.ttUser && ss.ttKey && (Q.has('connect') || ON_SITE)) connectTikTok(ss.ttUser, ss.ttKey);
   requestAnimationFrame(frame);
   setTimeout(() => { const h = $('hHint'); if (h) h.classList.add('gone'); }, 8000);
 })();
