@@ -112,3 +112,6 @@
 - CrazyChess (both games): new "Last turn (finish game)" button next to End turn now. The current turn becomes the last one, then the game is scored as if the turns ran out.
 - Navy Chess: the streamer's ship is a random free Red ship, like everyone else's.
 - CrazyChess is now v1.4: G:\My Drive\Weaselwonder\Game builds\Crazy chess\v1.4 stream preview (src/ builds to exactly public/crazychess/index.html).
+
+## r22.1 · 2026-11-20
+- /streamer and game pages: CrazyChess labelled v1.4.

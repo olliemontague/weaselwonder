@@ -39,7 +39,7 @@ window.WW_GAMES = [
     art: "crazychess.svg", card: "crazychess-shot.jpg",
     accent: "#4aa3e8",
     status: "live",
-    version: "v1.3 stream preview",
+    version: "v1.4",
     versionDate: "20 Nov 2026",
     variants: ["Crazy Chess (chess pieces)", "Navy Chess (ships)"],
     offline: [
