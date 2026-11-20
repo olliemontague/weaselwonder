@@ -120,3 +120,7 @@
 - ZombieRats: windows moved to the Twitch layout standard (chat 1456,176 440×560; camera 1456,760 440×248; how-to bottom left with the PLAY WITH ME bar). Host buttons hidden on stream by default (?noclean shows them).
 - ZombieRats: simulated chat never runs on weaselwonder.com; the settings show it as off.
 - ZombieRats: Twitch status reads "connected & reading #channel" once the channel join is confirmed, "disconnected" if it drops.
+
+## r24 · 2026-11-20
+- Camera backgrounds (Twitch only): pick one on /streamer under "Camera background" or in any game's settings; it shows inside the camera frame behind the OBS webcam (needs background removal on the webcam). "Match the game" uses chess study (CrazyChess), red submarine (Navy Chess), log cabin (ZombieRats), dugout (Corpse Crafter). Also: none, WW2 submarine. Shared code: /assets/ww-cambg.js, images in /assets/cambg/.
+- CrazyChess v1.5: full-screen Twitch layout with Flow backgrounds (study for chess, ops room for naval), standard windows, camera background.
