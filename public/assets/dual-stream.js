@@ -11,20 +11,35 @@
   const PREFERRED = PATH.startsWith("/corpsecrafter") ? "#hgl" : null;   // Corpse Crafter host game canvas
   let popup = null, timer = null;
 
-  const vis = c => c.offsetWidth > 60 && c.offsetHeight > 60 && getComputedStyle(c).visibility !== "hidden";
+  // Every canvas on the page, including canvases inside same-origin iframes (ZombieRats /zombierats/ runs the game in an
+  // iframe). Each entry knows its rectangle in this window's coordinates, allowing for a scaled stage around the iframe.
+  function entries() {
+    const out = [...document.querySelectorAll("canvas")].map(c => ({ c, rect: () => c.getBoundingClientRect() }));
+    for (const f of document.querySelectorAll("iframe")) {
+      let d = null; try { d = f.contentDocument; } catch (e) {}
+      if (!d) continue;
+      for (const c of d.querySelectorAll("canvas")) out.push({ c, rect: () => {
+        const a = f.getBoundingClientRect(), sx = a.width / (f.offsetWidth || 1), sy = a.height / (f.offsetHeight || 1), b = c.getBoundingClientRect();
+        const left = a.left + (f.clientLeft + b.left) * sx, top = a.top + (f.clientTop + b.top) * sy, width = b.width * sx, height = b.height * sy;
+        return { left, top, width, height, right: left + width, bottom: top + height };
+      } });
+    }
+    return out;
+  }
+  const vis = e => { const c = e.c, w = c.ownerDocument.defaultView; return c.offsetWidth > 60 && c.offsetHeight > 60 && w.getComputedStyle(c).visibility !== "hidden" && w.getComputedStyle(c).display !== "none"; };
   function mainCanvas() {
-    const p = PREFERRED && document.querySelector(PREFERRED);
-    if (p && vis(p)) return p;
+    const all = entries().filter(vis);
+    const p = PREFERRED && all.find(e => e.c.matches(PREFERRED));
+    if (p) return p;
     // otherwise the biggest portrait-shaped canvas on the page (the TikTok game column)
-    return [...document.querySelectorAll("canvas")].filter(vis)
-      .map(c => ({ c, r: c.getBoundingClientRect() }))
+    return all.map(e => ({ e, r: e.rect() }))
       .sort((a, b) => ((b.r.height > b.r.width) - (a.r.height > a.r.width)) || (b.r.width * b.r.height - a.r.width * a.r.height))
-      .map(x => x.c)[0] || null;
+      .map(x => x.e)[0] || null;
   }
   function layers(main) {
-    const box = main.getBoundingClientRect();
+    const box = main.rect();
     const inside = r => { const ix = Math.max(0, Math.min(r.right, box.right) - Math.max(r.left, box.left)), iy = Math.max(0, Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top)); return (ix * iy) / Math.max(1, r.width * r.height); };
-    const list = [...document.querySelectorAll("canvas")].filter(c => vis(c) && inside(c.getBoundingClientRect()) > 0.8);
+    const list = entries().filter(e => vis(e) && inside(e.rect()) > 0.8);
     return { box, list: list.length ? list : [main] };
   }
 
@@ -35,13 +50,13 @@
     msg.textContent = "";
     stage.innerHTML = "";
     const { list } = layers(main);
-    const vids = list.map(c => {
+    const vids = list.map(e => {
       const v = win.document.createElement("video");
       v.muted = true; v.autoplay = true; v.playsInline = true;
-      try { v.srcObject = c.captureStream(30); } catch (e) { msg.textContent = "This browser cannot share the game view (" + e.message + ")"; }
+      try { v.srcObject = e.c.captureStream(30); } catch (err) { msg.textContent = "This browser cannot share the game view (" + err.message + ")"; }
       v.play().catch(() => {});
       stage.append(v);
-      return { c, v };
+      return { e, v };
     });
     clearInterval(timer);
     const place = () => {
@@ -49,8 +64,8 @@
       const { box } = layers(main), W = win.innerWidth, H = win.innerHeight;
       const s = Math.max(W / box.width, H / box.height);          // fill the 9:16 window, crop the overflow
       const ox = (W - box.width * s) / 2, oy = (H - box.height * s) / 2;
-      vids.forEach(({ c, v }) => {
-        const r = c.getBoundingClientRect();
+      vids.forEach(({ e, v }) => {
+        const r = e.rect();
         Object.assign(v.style, { left: ox + (r.left - box.left) * s + "px", top: oy + (r.top - box.top) * s + "px", width: r.width * s + "px", height: r.height * s + "px" });
       });
     };

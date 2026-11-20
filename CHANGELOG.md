@@ -83,3 +83,12 @@
 - ZombieRats pages (/zombierats, /play, /tutorial) renamed from Zombuild to ZombieRats.
 - /streamer: Chat connections card (Twitch channel, TikTok username, tik.tools API key), saved in the browser and shared by ZombieRats and Corpse Crafter.
 - Corpse Crafter host reads TikTok chat and gifts straight from tik.tools (no local relay needed) when the key is saved on /streamer. Its settings drawer (H) gets an "Open TikTok portrait window" button (the T shortcut is gone: too easy to hit by accident).
+
+## r20 · 2026-11-20 (ZombieRats v1.3 test build at /zombierats/next/, portrait pop-up fix)
+- New page only: weaselwonder.com/zombierats/next/ (streamer login). Nothing else on the site changes; /zombierats/, /play/ and /tutorial/ still run r17. Models load from /tutorial/models/.
+- Game: no rat waves (hunt and lure), nests, colonies and loners, pin melee, burrow, heat and scout rats, raids, rats prefer corpses, automatic bones and meat economy with belts, baby mice respawns, chat mice that collect bodies and fetch items by number, need-based top 5, win by clearing the nests. Two unnamed town mice help when fewer than 2 viewers have mice.
+- Landscape (this window, Twitch / TikTok landscape): full-width game, see-through windows at the edges (status, needs, top crew, how to play, chat, camera frame), middle strip kept clear.
+- Portrait (TikTok): Host panel (H) → Open portrait window. Drawn by the same game (second renderer), so it needs no canvas capture. Full-height game, status and top crew cards top left, camera card bottom right with LIVE and WEASELWONDER, PLAY WITH ME line.
+- Chat: simulated (off / quiet / typical / busy, with follows, roses and a delay), Twitch, TikTok via tik.tools (uses the Chat connections saved on /streamer) or TikFinity. ?clean hides host-only controls.
+- Balance (v1.3): rats near a living nest drag bodies into the nest instead of eating them, so nests don't grow as you attack them. Towers weaker: 8 m range, 8 s reload.
+- Fix for the live /zombierats/ TikTok pop-up ("No game view found"): dual-stream.js now also finds game canvases inside same-origin iframes and allows for the scaled stage around them. Only canvases are copied, so the page's HTML panels still don't appear in the pop-up.
