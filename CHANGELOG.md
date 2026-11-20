@@ -81,3 +81,5 @@
 - Home page live card: direct Join button plus How to play. Game pages hide the offline buttons and show Join while weasel is live with that game.
 - /stream is now /zombierats (old /stream links redirect). Every streamer view needs the streamer login: /streamer/, /zombierats/, /corpsecrafter/weasel and the TikTok pop-up. Logging in returns you to the page you asked for.
 - ZombieRats pages (/zombierats, /play, /tutorial) renamed from Zombuild to ZombieRats.
+- /streamer: Chat connections card (Twitch channel, TikTok username, tik.tools API key), saved in the browser and shared by ZombieRats and Corpse Crafter.
+- Corpse Crafter host reads TikTok chat and gifts straight from tik.tools (no local relay needed) when the key is saved on /streamer. Its settings drawer (H) gets an "Open TikTok portrait window" button (the T shortcut is gone: too easy to hit by accident).

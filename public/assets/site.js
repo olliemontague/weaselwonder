@@ -213,11 +213,28 @@
               <div class="acts">${g.stream && g.stream.url
                 ? `<a class="btn live" data-go="${g.slug}" href="${esc(href(g.stream.url))}" target="_blank" rel="noopener">Go live and open</a>`
                 : `<span class="btn soon" aria-disabled="true">Go live <em>Soon</em></span>`}</div></div>`).join("")}</div>
+          <div class="chatset"><h2 class="t" style="font-size:24px">Chat connections</h2>
+            <p class="sub">Used by every game's streamer view (ZombieRats and Corpse Crafter). Saved in this browser only. Reload the game tab after saving.</p>
+            <form id="chatform" class="cform">
+              <label>Twitch channel<input name="twitch" autocomplete="off" placeholder="weaselwonder"></label>
+              <label>TikTok username<input name="ttUser" autocomplete="off" placeholder="weaselwonder"></label>
+              <label>tik.tools API key<input name="ttKey" type="password" autocomplete="off" placeholder="from your tik.tools account"></label>
+              <div class="row"><button class="btn">Save</button><button type="button" class="btn ghost" id="showkey">Show key</button><span id="chatmsg" class="sub" style="margin:0"></span></div>
+            </form>
+            <p class="sub" style="font-size:14px">TikTok chat and gifts come through tik.tools while you are live on TikTok. Twitch chat needs no key.</p></div>
           <div class="devnote">Prototype: Go live here flips the mock state, so open the home page to see the live view.</div>
         </div></section>`;
         // Opens the game's host view in a new tab (so it is never popup-blocked) and marks the site live at the same moment.
         m.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => setLive(b.dataset.go)));
         document.getElementById("go-off").onclick = () => setLive("");
+        const cf = document.getElementById("chatform");
+        if (cf && window.WWChat) {
+          const v = WWChat.get(); cf.twitch.value = v.twitch; cf.ttUser.value = v.ttUser; cf.ttKey.value = v.ttKey;
+          cf.onsubmit = e => { e.preventDefault();
+            const ok = WWChat.set({ twitch: cf.twitch.value.trim().replace(/^#/, ""), ttUser: cf.ttUser.value.trim(), ttKey: cf.ttKey.value.trim() });
+            document.getElementById("chatmsg").textContent = ok ? (cf.ttKey.value.trim() ? "Saved. TikTok and Twitch ready." : "Saved. Add the tik.tools key for TikTok.") : "Could not save in this browser."; };
+          document.getElementById("showkey").onclick = e => { cf.ttKey.type = cf.ttKey.type === "password" ? "text" : "password"; e.target.textContent = cf.ttKey.type === "password" ? "Show key" : "Hide key"; };
+        }
         renderers.streamerLive(live.live && byslug(live.game));
       };
       if (PROTO) {

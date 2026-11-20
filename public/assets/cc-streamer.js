@@ -11,3 +11,41 @@
     if (x.status === 200 && JSON.parse(x.responseText).ok) localStorage.setItem("ww_host_pw", "streamer-login");
   } catch (e) {}
 })();
+
+/* TikTok chat for Corpse Crafter without the local relay: when the relay address is "tiktools://",
+   connect to tik.tools with the username and key saved on /streamer, and hand the page messages in
+   the relay's own format ({type:"chat"|"gift"|"status", ...}). */
+(function () {
+  if (!location.pathname.startsWith("/corpsecrafter/weasel")) return;
+  const Real = window.WebSocket;
+  function TikTools(url) {
+    const fake = { readyState: 0, onopen: null, onmessage: null, onclose: null, onerror: null, close() { closed = true; try { ws && ws.close(); } catch (e) {} } };
+    let ws = null, closed = false;
+    const emit = o => { try { fake.onmessage && fake.onmessage({ data: JSON.stringify(o) }); } catch (e) {} };
+    let z = {}; try { z = JSON.parse(localStorage.getItem("zb_stream_settings") || "{}"); } catch (e) {}
+    const user = String(z.ttUser || "").replace(/^@/, ""), key = z.ttKey || "";
+    setTimeout(() => {
+      if (!user || !key) { emit({ type: "status", text: "add your TikTok name and tik.tools key on /streamer" }); fake.onclose && fake.onclose({}); return; }
+      ws = new Real("wss://api.tik.tools?uniqueId=" + encodeURIComponent(user) + "&apiKey=" + encodeURIComponent(key));
+      ws.onopen = () => { fake.readyState = 1; fake.onopen && fake.onopen({}); emit({ type: "status", text: "TikTok @" + user + " via tik.tools" }); };
+      ws.onmessage = e => {
+        let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+        const ev = m.event || m.type, d = m.data || {}, u = d.user || {};
+        const name = u.nickname || u.uniqueId || d.user_unique_id || d.uniqueId || "viewer";
+        if (ev === "chat") emit({ type: "chat", user: name, text: d.comment || "" });
+        else if (ev === "gift") {
+          if (d.giftType === 1 && !d.repeatEnd) return;
+          const n = d.repeatCount || 1;
+          emit({ type: "gift", user: name, gift: d.giftName || "gift", count: n, coins: (d.diamondCount || 1) * n });
+        } else if (m.error || ev === "error") emit({ type: "status", text: "TikTok: " + (m.error || d.message || "error") });
+      };
+      ws.onclose = () => { fake.readyState = 3; if (!closed) fake.onclose && fake.onclose({}); };
+      ws.onerror = () => {};
+    }, 0);
+    return fake;
+  }
+  window.WebSocket = function (url, p) { return String(url).startsWith("tiktools://") ? TikTools(url) : (p === undefined ? new Real(url) : new Real(url, p)); };
+  window.WebSocket.prototype = Real.prototype;
+  ["CONNECTING", "OPEN", "CLOSING", "CLOSED"].forEach((k, i) => window.WebSocket[k] = i);
+  try { const z = JSON.parse(localStorage.getItem("zb_stream_settings") || "{}"); if (z.ttKey && !/^tiktools:/.test(localStorage.getItem("cc-tt") || "")) localStorage.setItem("cc-tt", "tiktools://"); } catch (e) {}
+})();

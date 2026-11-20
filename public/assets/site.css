@@ -224,3 +224,8 @@ body.live-here .gtop{top:114px}
 .live-cta small{color:var(--bone);max-width:40ch}
 body.live-here .live-cta{display:flex}
 body.live-here .ghero .ctas,body.live-here .ghero .devnote{display:none}
+
+.chatset{margin-top:34px;padding:22px;border-radius:var(--r);background:var(--card);border:1px solid var(--line)}
+.cform{display:grid;gap:12px;max-width:560px}
+.cform label{display:grid;gap:6px;font-weight:700;font-size:14px;color:var(--bone)}
+.cform input{font:16px Inter,sans-serif;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.35);color:var(--ink)}

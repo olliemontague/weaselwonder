@@ -64,18 +64,33 @@
   }
   window.WWDual = { attach, open };
 
+  const JUICY = "display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:8px 0 2px;padding:12px 14px;border:0;border-radius:12px;cursor:pointer;" +
+    "font:800 15px system-ui,sans-serif;color:#fff;background:linear-gradient(90deg,#25f4ee,#fe2c55);text-shadow:0 1px 2px #0006;" +
+    "box-shadow:0 4px 0 #8a1830,0 8px 18px #fe2c5555";
+  function makeBtn(id) {
+    const b = document.createElement("button"); b.type = "button"; b.id = id;
+    b.innerHTML = "&#9654;&#xFE0E; Open TikTok portrait window"; b.style.cssText = JUICY; b.onclick = open; return b;
+  }
   function button() {
-    const b = document.createElement("button");
-    b.id = "ww-dual-btn"; b.type = "button"; b.title = "Open the portrait TikTok window (key T)";
-    b.textContent = "TikTok window (T)";
-    b.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:2147483000;font:700 13px system-ui,sans-serif;padding:8px 12px;border-radius:10px;border:1px solid #25f4ee;background:#0b1214e6;color:#e8fbfc;cursor:pointer;opacity:.75";
-    b.onmouseenter = () => b.style.opacity = "1"; b.onmouseleave = () => b.style.opacity = ".75";
-    b.onclick = open;
-    document.body.append(b);
-    addEventListener("keydown", e => {
-      if ((e.key === "t" || e.key === "T") && !/INPUT|TEXTAREA|SELECT/.test((e.target.tagName || ""))) open();
-      if (e.key === "b" && e.altKey) b.hidden = !b.hidden;   // Alt+B hides the button for clean captures
-    });
+    // Corpse Crafter: inside the settings drawer (H), above the Stream buttons.
+    const place = () => {
+      if (document.getElementById("dTikTok")) return true;
+      const full = document.getElementById("dFull"); if (!full) return false;
+      const grid = full.closest(".grid") || full;
+      grid.before(makeBtn("dTikTok")); return true;
+    };
+    if (place()) return;
+    let n = 0;
+    const iv = setInterval(() => {
+      if (place()) return clearInterval(iv);
+      if (++n > 10) {                       // pages without that drawer (ZombieRats): a corner button, Alt+B hides it
+        clearInterval(iv);
+        const f = makeBtn("ww-dual-btn");
+        f.style.cssText += ";position:fixed;left:12px;bottom:12px;width:auto;z-index:2147483000;opacity:.85";
+        document.body.append(f);
+        addEventListener("keydown", e => { if (e.key === "b" && e.altKey) f.hidden = !f.hidden; });
+      }
+    }, 300);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", button); else button();
 })();
