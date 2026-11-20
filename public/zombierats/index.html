@@ -3538,7 +3538,7 @@ window.ZRF = {zrPinTry, zrBurrowToggle, zrChat, zrFetch, zrUnits, zrCost, zrStoc
 //   ?tikfinity reads TikTok chat, follows and gifts from TikFinity on this PC. ?delay=8 sets the simulated stream delay.
 // =====================================================================================================================
 const ZRS = {q:new URLSearchParams(location.search), portrait:null, els:{}, guides:false, camFrame:true, srcs:{}};
-ZRS.clean = ZRS.q.has('clean'); ZR.cfg.delay = +(ZRS.q.get('delay') || 6);
+ZRS.clean = ZRS.q.has('clean') || (/(^|\.)weaselwonder\.com$/.test(location.hostname) && !ZRS.q.has('noclean')); ZR.cfg.delay = +(ZRS.q.get('delay') || 6);
 if (ZRS.q.has('nosim')) ZR.cfg.chat = 'off';
 // follows and gifts (TikTok): points, a toast and a bigger mouse
 function zrFollow(name, plat){ zrChat(name, 'followed! 💛', plat); const c = ZR.cit.get((plat || 'x') + ':' + String(name).toLowerCase()); if (c){ zrPoints(c, 5); } toast(`💛 ${name} followed: +5`); zrStat('follows'); }
@@ -3652,15 +3652,15 @@ function zrPortraitRender(){
 const ZRL_GLASS = 'background:rgba(22,18,14,.58);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(232,195,122,.35);border-radius:16px;box-shadow:0 8px 24px #0006;color:#f3ead8';
 function zrDesktopFrame(){ const E = ZRS.els; if (E.cam) return;
   const mk = (css, html) => { const el = document.createElement('div'); el.style.cssText = 'position:fixed;z-index:19;pointer-events:none;' + css; el.innerHTML = html || ''; document.body.appendChild(el); return el; };
-  E.cam = mk('right:16px;bottom:16px;width:420px;height:236px;border:4px solid #e8c37a;border-radius:18px;box-shadow:0 0 0 3px #000a,0 10px 30px #0008;background:transparent',
+  E.cam = mk('left:1456px;top:760px;width:440px;height:248px;box-sizing:border-box;border:4px solid #e8c37a;border-radius:18px;box-shadow:0 0 0 3px #000a,0 10px 30px #0008;background:transparent',
     '<span style="position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);background:#e8c37a;color:#1b140c;font:900 20px system-ui;padding:4px 18px;border-radius:10px;letter-spacing:.06em;border:2px solid #000;white-space:nowrap">WEASELWONDER</span>');
-  E.chat = mk(`right:16px;top:236px;width:420px;height:calc(100vh - 236px - 290px);min-height:160px;overflow:hidden;padding:10px 14px;box-sizing:border-box;font:600 16px system-ui;line-height:1.35;${ZRL_GLASS}`);
-  E.how = mk(`left:16px;bottom:16px;width:400px;padding:12px 16px;box-sizing:border-box;font:700 16px system-ui;line-height:1.45;${ZRL_GLASS}`,
+  E.chat = mk(`left:1456px;top:176px;width:440px;height:560px;overflow:hidden;padding:10px 14px;box-sizing:border-box;font:600 16px system-ui;line-height:1.35;${ZRL_GLASS}`);
+  E.how = mk(`left:24px;top:680px;width:440px;height:376px;padding:16px 20px 76px;box-sizing:border-box;font:700 16px system-ui;line-height:1.45;${ZRL_GLASS}`,
     '<div style="font:900 15px system-ui;color:#e8c37a;letter-spacing:.1em">HOW TO PLAY</div>' +
     '💬 <b>Comment</b>: your mouse drops in and collects dead rats<br>' +
     '<b style="color:#e8c37a">1</b> 〰️ wire · <b style="color:#e8c37a">2</b> 🧱 bags · <b style="color:#e8c37a">3</b> 🪤 trap · <b style="color:#e8c37a">4</b> 🏹 turret: fetch it for Weasel<br>' +
     '⭐ Bring what Weasel asks for: <b>+3</b> · top 5 get titles<br>💛 Follow <b>+5</b> · 🌹 Gifts <b>+2</b> a coin<br>' +
-    '<span style="color:#b9ad97">PLAY WITH ME · </span><b style="color:#e8c37a">www.weaselwonder.com</b>');
+    '<div style="position:absolute;left:20px;right:20px;bottom:16px;padding:11px 14px;border-radius:12px;background:#e8c37a;color:#1b140c;font:800 16px system-ui;text-align:center">PLAY WITH ME · www.weaselwonder.com</div>');
   E.guides = mk('inset:0;z-index:30;display:none', '<div style="position:absolute;left:50%;top:0;bottom:0;width:608px;transform:translateX(-50%);border-left:3px dashed #ff4fa3;border-right:3px dashed #ff4fa3;background:#ff4fa30d;color:#ff4fa3;font:900 16px system-ui;text-align:center;padding-top:8px">middle strip: kept clear</div>');
 }
 function zrChatDraw(){ const E = ZRS.els; if (!E.chat || !ZR.chatDirty) return; ZR.chatDirty = false;
@@ -3671,14 +3671,17 @@ function zrStreamApply(){
   if (!ZR.on) return; zrDesktopFrame(); const E = ZRS.els, Z = ZR.els, set = (el, css) => { if (el) el.style.cssText += ';' + css; };
   E.cam.style.display = ZRS.camFrame ? 'block' : 'none'; E.guides.style.display = ZRS.guides ? 'block' : 'none';
   // left column: status, need, top crew, messages; right column: hp, map, chat, camera; nothing in the middle
-  set(Z.panel, ZRL_GLASS + ';left:16px;top:16px;width:400px;box-sizing:border-box');
-  set(Z.need, 'left:16px;top:196px;transform:none;font:900 18px system-ui');
-  set(Z.top, ZRL_GLASS + ';left:16px;right:auto;top:246px;width:400px;box-sizing:border-box');
-  set(Z.pinPct, 'left:16px;top:420px;transform:none;font:900 22px system-ui');
-  set(Z.keys, 'right:auto;left:16px;bottom:230px;display:' + (ZRS.clean ? 'none' : 'block'));
-  set(document.getElementById('toast'), 'left:16px;top:470px;transform:none;width:400px;text-align:left;font-size:22px');
-  set(document.getElementById('hpwrap'), ZRL_GLASS);
-  set(document.getElementById('btns'), 'left:432px;transform:none;display:' + (ZRS.clean ? 'none' : 'flex'));
+  // Twitch layout standard (claude/dual-stream-specs.md): status A+B (24,24, to y 360), top crew C (24,384),
+  // how to play D (24,680), game extras E (1456,24), chat (1456,176) and camera (1456,760) fixed, alerts in the banner slot
+  set(Z.panel, ZRL_GLASS + ';left:24px;top:24px;width:440px;max-height:336px;overflow:hidden;box-sizing:border-box;padding:16px 20px');
+  set(Z.need, 'left:960px;top:128px;transform:translateX(-50%);font:900 22px system-ui');
+  set(Z.top, ZRL_GLASS + ';left:24px;right:auto;top:384px;width:440px;height:272px;overflow:hidden;box-sizing:border-box;padding:16px 20px');
+  set(Z.pinPct, 'left:960px;top:184px;transform:translateX(-50%);font:900 22px system-ui');
+  set(Z.keys, 'right:auto;left:488px;top:920px;bottom:auto;width:944px;box-sizing:border-box;display:' + (ZRS.clean ? 'none' : 'block'));
+  set(document.getElementById('toast'), 'left:960px;top:232px;transform:translateX(-50%);width:704px;text-align:center;font-size:22px');
+  set(document.getElementById('hpwrap'), ZRL_GLASS + ';left:auto;right:164px;top:24px;width:276px;box-sizing:border-box');
+  set(document.getElementById('map'), 'top:36px;right:36px;bottom:auto;width:104px;height:104px');
+  set(document.getElementById('btns'), 'left:960px;transform:translateX(-50%);display:' + (ZRS.clean ? 'none' : 'flex'));
   for (const id of ['tut', 'hint', 'sprint']){ const el = document.getElementById(id); if (el) el.style.display = 'none'; }
   ZRS.applied = true;
 }
