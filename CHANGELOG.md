@@ -128,5 +128,12 @@
 - TikTok portrait window, one per session: "Open TikTok portrait window" on /streamer (above Chat connections; press again to reopen or bring it forward). Shows a "Weasel is changing game" hold screen, and every game launched from /streamer shows its portrait slice in it: ZombieRats (its portrait camera and cards), CrazyChess / Navy Chess (its portrait view), Corpse Crafter (the game video, following Weasel in the wide view). Reconnects by itself after the window is reopened or /streamer reloads. In-game portrait/TikTok buttons removed (ZombieRats O key and host button, CrazyChess control button, Corpse Crafter drawer button). Shared code: /assets/ww-stage.js, /streamer/portrait.html.
 - ZombieRats factory: outpost box first and rebuilt as soon as one is used; then a fixed menu in random order, 3 barbed wire, 2 sandbags, 1 trap, 1 turret, until every item has twice its share; then it tops up whichever grid is emptiest.
 
+## r24.1 · 2026-11-20 (live fixes during stream)
+- CrazyChess: typing red or blue after joining switches team (old ship goes to a bot, a ship is crewed on the new side; once every 2 turns).
+- CrazyChess: Twitch chat (and TikTok via tik.tools, if a key is saved on /streamer) connects by itself when the game opens and reconnects if it drops. Add ?nochat to skip.
+- CrazyChess: the game keeps running and feeding the TikTok portrait window when its own window is covered or minimised (worker timer fallback when Chrome pauses animation frames).
+
 ## r25 · 2026-11-20
 - CrazyChess and ZombieRats on weaselwonder.com connect Twitch and TikTok (tik.tools) from the /streamer chat settings as soon as they open. If tik.tools closes the link (not live on TikTok yet, or key refused) they retry every 10 s and say why in the status line. Chat can no longer come in doubled: one Twitch and one TikTok link at a time, and both games drop any message whose id they have already shown (CrazyChess and ZombieRats).
+- Built on r24.1 (pushed from another session during the stream): its team switching, chat auto-connect/reconnect and covered-window timer are kept in the CrazyChess source; this adds the message-id de-duplication and the reason in the TikTok status line, and fixes the CrazyChess control panel being stuck on "Connecting to the game window" in r24.1 (it was sent the live chat sockets, which cannot be copied between windows).
+
