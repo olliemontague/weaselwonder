@@ -35,28 +35,28 @@ window.WW_GAMES = [
     slug: "crazychess",
     title: "CrazyChess",
     tagline: "Chat plays chess. Everyone moves at once.",
-    blurb: "Rock, paper, scissors on a chess board. Every viewer crews a piece and types a direction; all moves land at the same time.",
+    blurb: "Two games in one: Crazy Chess (real chess pieces, Knight beats Bishop beats Rook beats Knight) and Navy Chess (Battleship beats Destroyer beats Sub). Every viewer crews a piece, all moves land at the same time.",
     art: "crazychess.svg", card: "crazychess-shot.jpg",
     accent: "#4aa3e8",
-    status: "soon",
-    version: "Fleet Chess mobile u3",
-    versionDate: "19 Nov 2026",
-    variants: ["Fleet Chess (naval)", "Front Line (air and armour)", "Zombie Chess (humans vs zombies)"],
+    status: "live",
+    version: "v1.3 stream preview",
+    versionDate: "20 Nov 2026",
+    variants: ["Crazy Chess (chess pieces)", "Navy Chess (ships)"],
     offline: [
-      { label: "Playtest: you vs the AI", url: null, primary: true, note: "Coming soon: Fleet Chess, 3 to 12 ships a side, phone friendly" }
+      { label: "Playtest: you vs the AI", url: null, primary: true, note: "Coming soon: phone friendly" }
     ],
-    join: { label: "Type a direction in chat", url: null, note: "Played from TikTok or Twitch chat: up, down, left, right" },
-    stream: { label: "CrazyChess stream mode", url: null },
+    join: { label: "Join from your browser", url: "/crazychess/play/", note: "Or comment red or blue in chat, then type a direction like n, ne or e5" },
+    stream: { label: "CrazyChess stream mode", url: "/crazychess/" },
     how: [
-      ["Pick a side", "Comment once to join the smaller team. You crew a ship (or share one when chat is busy)."],
-      ["Type a direction", "up, down, left, right or hold. Moves stay hidden until the turn plays out."],
-      ["Who beats who", "Battleship beats Destroyer, Destroyer beats Submarine, Submarine beats Battleship. Same type bounces."],
-      ["Win", "Sink every enemy ship, or have the most left after 20 turns. Sunk? You jump into another ship."]
+      ["Pick a side", "Comment red or blue (or join from the website). You get your own piece or ship."],
+      ["Type a direction", "Compass words: n, ne, e, se, s, sw, w, nw, plus squares (e5). Knights jump with nne, een and so on. hold stays put."],
+      ["Who beats who", "Crazy Chess: Knight beats Bishop beats Rook beats Knight. Navy Chess: Battleship beats Destroyer beats Sub beats Battleship."],
+      ["Win", "Capture the King (Crazy) or sink every enemy ship (Navy), or be ahead when the turns run out."]
     ],
     shots: [
       ["Fleet Chess: turn 15, 8 ships left against 9", "crazychess-shot.jpg"],
-      ["Mobile build, 6x9 board", "crazychess.svg"],
-      ["Front Line skin", "crazychess.svg"]
+      ["Navy Chess, 6x9 board", "crazychess.svg"],
+      ["Crazy Chess", "crazychess.svg"]
     ],
     vods: []
   },

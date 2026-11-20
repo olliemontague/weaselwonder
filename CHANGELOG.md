@@ -92,3 +92,9 @@
 - Chat: simulated (off / quiet / typical / busy, with follows, roses and a delay), Twitch, TikTok via tik.tools (uses the Chat connections saved on /streamer) or TikFinity. ?clean hides host-only controls.
 - Balance (v1.3): rats near a living nest drag bodies into the nest instead of eating them, so nests don't grow as you attack them. Towers weaker: 8 m range, 8 s reload.
 - Fix for the live /zombierats/ TikTok pop-up ("No game view found"): dual-stream.js now also finds game canvases inside same-origin iframes and allows for the scaled stage around them. Only canvases are copied, so the page's HTML panels still don't appear in the pop-up.
+
+## r21 · 2026-11-20
+- CrazyChess v1.3 stream preview live: streamer view at /crazychess/ (streamer login, same as /streamer), website players at /crazychess/play/ (public). Crazy Chess and Navy Chess in one page; control panel with H.
+- Live room: website players on their own phones join the streamer's game through the server (Durable Object instance "crazychess"). Only a browser with the streamer login can be the game window; a second game window replaces the first. Players can only move their own piece; a closed phone drops out after 20 s.
+- On the site, simulated viewers are off by default (switch them on in the Chat tab).
+- games.js: CrazyChess marked live, Join from your browser, stream mode link.
