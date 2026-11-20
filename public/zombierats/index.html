@@ -3074,7 +3074,7 @@ const STAGES = [
 const ZR = {on:false, mode:new URLSearchParams(location.search).get('zr') !== '0',
   cfg:{ratRun:4.3, notice:5, noticeBig:7, squeal:8, squealPer:1.5, leash:28, chaseMax:25, eatSight:6, alertT:12,
     pinBase:1.4, pinPer:0.3, pinBreakDmg:15, scoutSpeed:2.6, burrowDig:0.6, burrowCd:12, fence:2500, fenceRepair:20, towerReload:8, procEvery:2.0, makeEvery:2.5,
-    nestEvery:35, ratCap:45, babyCap:8, babyOutCap:3, meatPerBaby:4, startBabies:3, costStep:0.25, hunters:2, chat:'typical', maxMice:10,
+    nestEvery:35, autoBox:true, ratCap:45, babyCap:8, babyOutCap:3, meatPerBaby:4, startBabies:3, costStep:0.25, hunters:2, chat:'typical', maxMice:10,
     heatCamp:1.0, heatHunt:1.5, heatShot:0.01, scoutRoll:5, scoutK:0.006, scoutGap:90, towerRange:8, nestDrag:12},
   costs:{wire:2, bag:3, trap:4, turret:8, box:12},
   terrs:[], nests:[], riders:[], cit:new Map(), heat:0, bones:0, meat:0, babyTown:0, babyOut:0, need:null, wantBox:false,
@@ -3092,7 +3092,7 @@ function zrStat(k, n=1){ if (ZR.stats) ZR.stats[k] = (ZR.stats[k] || 0) + n; }
 function zrSetup(){
   ZR.on = true; ZR.T0 = {sprint:T.sprint, ratRun:T.ratRun};
   T.sprint = 1; T.ratRun = ZR.cfg.ratRun;                         // nobody outruns a rat: no sprint, rats run at (almost) your speed
-  Object.assign(ZR, {terrs:[], nests:[], riders:[], heat:0, bones:6, meat:0, babyTown:ZR.cfg.startBabies, babyOut:0, need:null, wantBox:false, burrow:null, pin:null, scout:null, procT:1, makeT:1, heatT:0, sec:0, lost:false,
+  Object.assign(ZR, {terrs:[], nests:[], riders:[], heat:0, bones:6, meat:0, babyTown:ZR.cfg.startBabies, babyOut:0, need:null, wantBox:false, mix:null, mixNext:null, burrow:null, pin:null, scout:null, procT:1, makeT:1, heatT:0, sec:0, lost:false,
     stats:{t:0, kills:0, pinKills:0, pinBreaks:0, towerKills:0, deaths:0, raids:0, scouts:0, scoutsKilled:0, collected:0, units:0, items:0, babies:0, miceEaten:0, burrows:0, eaten:0, delivered:0, requested:0, nestsCleared:0}});
   for (const c of ZR.cit.values()) c.bot = null;
   ZR.helpers = [];
@@ -3278,6 +3278,23 @@ function zrStock(k){ return COILS.filter(c => c.kind === k).length + ZR.riders.f
 function zrCost(k){ return k === 'box' ? ZR.costs.box : Math.round(ZR.costs[k] * (1 + ZR.cfg.costStep * zrStock(k))); }
 function zrRide(beltKey, mesh, onArrive, kind){ const B = BELTS[beltKey]; if (!B){ onArrive(); return; } mesh.position.copy(B.a).setY(0.25); scene.add(mesh); ZR.riders.push({m:mesh, a:B.a, b:B.b, len:B.len, s:0, onArrive, kind}); }
 function zrToken(col, s=0.22){ const m = new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.7, s), toon(col)); m.castShadow = true; return m; }
+// Build mix. Until the town is well stocked the factory works through a fixed menu, in random order:
+// 3 barbed wire, 2 sandbags, 1 trap, 1 turret (no guns now, so turrets matter). Once every item has at least
+// twice its share in stock it just tops up whatever fills the least of its grid.
+const ZR_MIX = {wire:3, bag:2, trap:1, turret:1};
+function zrSlots(k){ const T2 = TRAYS[KIT_TRAY[k]]; return T2 ? T2.slots.length : 8; }
+function zrWellStocked(){ return ZR_KINDS.every(k => zrStock(k) >= ZR_MIX[k] * 2 || !trayFree(k)); }
+function zrPickMake(free){
+  if (!free.length) return null;
+  if (zrWellStocked()) return free.slice().sort((a, b) => zrStock(a) / zrSlots(a) - zrStock(b) / zrSlots(b) || zrCost(a) - zrCost(b))[0];
+  ZR.mix = ZR.mix || {wire:0, bag:0, trap:0, turret:0};
+  let left = free.filter(k => ZR.mix[k] < ZR_MIX[k]);
+  if (!left.length){ if (ZR_KINDS.every(k => ZR.mix[k] >= ZR_MIX[k] || !trayFree(k))) ZR.mix = {wire:0, bag:0, trap:0, turret:0}; left = free.filter(k => ZR.mix[k] < ZR_MIX[k]); }
+  if (!left.length) return null;
+  if (!ZR.mixNext || !left.includes(ZR.mixNext)) ZR.mixNext = left[Math.floor(Math.random() * left.length)];   // random order, kept until it is made
+  return ZR.mixNext;
+}
+function zrMixDone(k){ ZR.mix = ZR.mix || {wire:0, bag:0, trap:0, turret:0}; ZR.mix[k] = (ZR.mix[k] || 0) + 1; ZR.mixNext = null; }
 function zrEconomy(dt){
   for (const rd of [...ZR.riders]){ rd.s += 1.3 * dt; const k = Math.min(1, rd.s / rd.len); rd.m.position.lerpVectors(rd.a, rd.b, k).setY(0.25); if (k >= 1){ scene.remove(rd.m); ZR.riders.splice(ZR.riders.indexOf(rd), 1); rd.onArrive(); } }
   ZR.procT -= dt;
@@ -3286,12 +3303,14 @@ function zrEconomy(dt){
   if (ZR.boxT > 0){ ZR.boxT -= dt; if (ZR.boxT <= 0){ ZR.boxRiding = false; OUT.box = makeOutpostBox(); crateVisible(false); toast('The outpost box is ready by the north entrance'); } }
   ZR.makeT -= dt;
   if (ZR.makeT <= 0){ ZR.makeT = ZR.cfg.makeEvery;
-    if (ZR.wantBox && !OUT.box && !ZR.boxRiding && !(L3.on) && ZR.bones >= ZR.costs.box){ ZR.bones -= ZR.costs.box; ZR.wantBox = false; ZR.boxRiding = true;
+    // outpost box first: one as soon as possible, and a new one as soon as the last is used (5 still orders one by hand)
+    const boxDue = (ZR.wantBox || ZR.cfg.autoBox) && !OUT.box && !ZR.boxRiding && !(L3.on);
+    if (boxDue && ZR.bones >= ZR.costs.box){ ZR.bones -= ZR.costs.box; ZR.wantBox = false; ZR.boxRiding = true;
       ZR.boxT = 2.5; }
-    else { // what to make: the host's request first, then whatever is lowest in stock that we can afford and have room for
-      const spare = ZR.bones - (ZR.wantBox && !OUT.box ? ZR.costs.box : 0); const opts = ZR_KINDS.filter(k => trayFree(k) && spare >= zrCost(k) && !ZR.riders.some(rd => rd.kind === k));
-      const k = opts.includes(ZR.need) ? ZR.need : opts.sort((a, b) => zrStock(a) - zrStock(b) || zrCost(a) - zrCost(b))[0];
-      if (k){ ZR.bones -= zrCost(k); const m = coilMesh(k); m.scale.setScalar(0.6); zrRide(ZR_BELT[k], m, () => { const sl = trayFree(k); if (sl) addCoil(sl, k); zrStat('items'); }, k); } }
+    else if (!boxDue){ // then the host's request, then the build mix (zrPickMake); saves up rather than buying something cheaper out of turn
+      const free = ZR_KINDS.filter(k => trayFree(k) && !ZR.riders.some(rd => rd.kind === k));
+      const k = free.includes(ZR.need) ? ZR.need : zrPickMake(free);
+      if (k && ZR.bones >= zrCost(k)){ ZR.bones -= zrCost(k); if (k !== ZR.need) zrMixDone(k); const m = coilMesh(k); m.scale.setScalar(0.6); zrRide(ZR_BELT[k], m, () => { const sl = trayFree(k); if (sl) addCoil(sl, k); zrStat('items'); }, k); } }
   }
   // med tent: meat becomes baby mice (respawn tokens)
   while (ZR.meat >= ZR.cfg.meatPerBaby && ZR.babyTown < ZR.cfg.babyCap){ ZR.meat -= ZR.cfg.meatPerBaby; ZR.babyTown++; zrStat('babies'); zrBabyMeshes(); }
