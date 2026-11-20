@@ -3486,7 +3486,7 @@ function zrHud(show){
       sec.innerHTML = '<h3>ZombieRats test</h3><label class="row"><span><b>Simulated chat</b><i>Fake viewers commenting and typing numbers (off on a real stream)</i></span><select id="zrChatSel"><option value="off">Off</option><option value="quiet">Quiet</option><option value="typical">Typical</option><option value="busy">Busy</option></select></label>' +
         '<label class="row"><span><b>Bot hunters</b><i>Simulated players who lure rats home. Applies on restart</i></span><select id="zrHuntSel"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>';
       card.insertBefore(sec, btns); const cs = sec.querySelector('#zrChatSel'), hs = sec.querySelector('#zrHuntSel'); cs.value = ZR.cfg.chat; hs.value = String(ZR.cfg.hunters);
-      cs.onchange = () => { ZR.cfg.chat = cs.value; }; hs.onchange = () => { ZR.cfg.hunters = +hs.value; }; E.set = sec; }
+      cs.onchange = () => { ZR.cfg.chat = cs.value; }; if (/(^|\.)weaselwonder\.com$/.test(location.hostname)){ cs.value = 'off'; cs.disabled = true; cs.title = 'Never simulated on weaselwonder.com'; } hs.onchange = () => { ZR.cfg.hunters = +hs.value; }; E.set = sec; }
     for (const id of ['pile', 'hpwrap']) { const el = document.getElementById(id); if (el && id === 'pile') el.style.display = 'none'; }
   }
   if (show === false){ for (const k of ['panel', 'need', 'top', 'keys', 'btn', 'pinBtn', 'chat', 'pinPct', 'set']) if (E[k]){ E[k].remove(); E[k] = null; } const el = document.getElementById('pile'); if (el) el.style.display = ''; return; }
@@ -3512,7 +3512,7 @@ const zrSim = {
   lines:['hi weasel!','hello','lol','go go go','rats!!','behind you','omg big rat','first time here','what game is this','nice','run!!','ahh','gg','he is so dead','yesss','how do i help','love the mice','👋','haha','that rat is huge'],
   levels:{off:0, quiet:0.08, typical:0.25, busy:0.9},
   reset(){ this.people = []; this.t = 0; this.pend = []; },
-  rate(){ return STREAM.on ? 0 : (this.levels[ZR.cfg.chat] || 0); },
+  rate(){ return (STREAM.on || ZRS.live) ? 0 : (this.levels[ZR.cfg.chat] || 0); },
   tick(dt){ const rate = this.rate(); if (!rate) return; this.t += dt;
     for (const p of [...this.pend]){ if (p.fn) continue; p.t -= dt; if (p.t <= 0){ this.pend.splice(this.pend.indexOf(p), 1); zrChat(p.name, p.text); } }
     if (Math.random() < rate * dt){ // someone new, or a regular
@@ -3539,17 +3539,19 @@ window.ZRF = {zrPinTry, zrBurrowToggle, zrChat, zrFetch, zrUnits, zrCost, zrStoc
 // =====================================================================================================================
 const ZRS = {q:new URLSearchParams(location.search), portrait:null, els:{}, guides:false, camFrame:true, srcs:{}};
 ZRS.clean = ZRS.q.has('clean') || (/(^|\.)weaselwonder\.com$/.test(location.hostname) && !ZRS.q.has('noclean')); ZR.cfg.delay = +(ZRS.q.get('delay') || 6);
-if (ZRS.q.has('nosim')) ZR.cfg.chat = 'off';
+ZRS.live = /(^|\.)weaselwonder\.com$/.test(location.hostname); // live site: real chat only, never simulated
+if (ZRS.q.has('nosim') || ZRS.live) ZR.cfg.chat = 'off';
 // follows and gifts (TikTok): points, a toast and a bigger mouse
 function zrFollow(name, plat){ zrChat(name, 'followed! 💛', plat); const c = ZR.cit.get((plat || 'x') + ':' + String(name).toLowerCase()); if (c){ zrPoints(c, 5); } toast(`💛 ${name} followed: +5`); zrStat('follows'); }
 function zrGift(name, coins, plat, gift){ zrChat(name, `sent ${gift || 'a gift'} 🌹`, plat); const c = ZR.cit.get((plat || 'x') + ':' + String(name).toLowerCase()); if (c){ zrPoints(c, Math.max(1, Math.round(coins || 1)) * 2); } toast(`🌹 ${name} sent ${gift || 'a gift'}: +${Math.max(1, Math.round(coins || 1)) * 2}`); zrStat('gifts'); }
 // ---------- chat sources: simulated (built in), Twitch (anonymous, read only), TikFinity (TikTok, local WebSocket) ----------
 function zrTwitch(ch){ ch = String(ch || '').replace(/^#/, '').toLowerCase().trim(); if (!ch) return; if (ZRS.srcs.tw) try { ZRS.srcs.tw.close(); } catch(e){}
   const ws = ZRS.srcs.tw = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); ZRS.twStatus = 'connecting #' + ch; zrHostDraw();
-  ws.onopen = () => { ws.send('CAP REQ :twitch.tv/tags'); ws.send('PASS SCHMOOPIIE'); ws.send('NICK justinfan' + Math.floor(rnd(10000, 99999))); ws.send('JOIN #' + ch); ZRS.twStatus = 'reading #' + ch; zrHostDraw(); toast('Twitch chat connected: #' + ch); };
+  ws.onopen = () => { ws.send('CAP REQ :twitch.tv/tags'); ws.send('PASS SCHMOOPIIE'); ws.send('NICK justinfan' + Math.floor(rnd(10000, 99999))); ws.send('JOIN #' + ch); ZRS.twStatus = 'joining #' + ch + '…'; zrHostDraw(); };
   ws.onmessage = e => { for (const line of String(e.data).split('\r\n')){ if (!line) continue; if (line.startsWith('PING')){ ws.send('PONG :tmi.twitch.tv'); continue; }
+      if (/ JOIN #/.test(line) && /^:justinfan/.test(line)){ ZRS.twStatus = '✅ connected & reading #' + ch; zrHostDraw(); toast('Twitch chat connected & reading: #' + ch); continue; }
       const m = line.match(/display-name=([^;]*);.* PRIVMSG #\S+ :(.*)$/) || line.match(/^:(\w+)!\S+ PRIVMSG #\S+ :(.*)$/); if (m) zrChat(m[1] || 'twitch', m[2], 'tw'); } };
-  ws.onclose = () => { ZRS.twStatus = 'closed'; zrHostDraw(); }; }
+  ws.onclose = () => { if (ZRS.srcs.tw === ws){ ZRS.twStatus = '❌ disconnected, press Connect'; zrHostDraw(); } }; }
 function zrTikfinity(){ if (ZRS.srcs.tf) try { ZRS.srcs.tf.close(); } catch(e){}
   let ws; try { ws = ZRS.srcs.tf = new WebSocket('ws://localhost:21213/'); } catch(e){ ZRS.tfStatus = 'failed'; zrHostDraw(); return; }
   ZRS.tfStatus = 'connecting'; zrHostDraw();
@@ -3697,7 +3699,7 @@ function zrHostDraw(){ const E = ZRS.els; if (!E.host) return;
   E.host.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#e8c37a;letter-spacing:.08em">HOST PANEL · not for capture (H hides)</b>${b('close', '✕')}</div>
    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${b('portrait', '📱 Open portrait window (O)', true)}${b('pause', '❚❚ Pause (P)')}${b('restart', '↺ Restart')}${b('clean', ZRS.clean ? '🎥 Clean: ON' : '🎥 Clean: off')}${b('guides', ZRS.guides ? '▦ Guides: ON (G)' : '▦ Guides: off (G)')}${b('camf', ZRS.camFrame ? '📷 Camera frame: ON (V)' : '📷 Camera frame: off (V)')}<button data-k="endgame" style="font:800 14px system-ui;padding:8px 12px;border-radius:10px;border:2px solid #000;background:#a8322a;color:#fff;cursor:pointer">⏹ End game</button></div>
    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center">
-   <span>Simulated chat</span>${sel('chat', ['off', 'quiet', 'typical', 'busy'], ZR.cfg.chat)}
+   <span>Simulated chat</span>${ZRS.live ? '<i style="opacity:.75">off (never on weaselwonder.com)</i>' : sel('chat', ['off', 'quiet', 'typical', 'busy'], ZR.cfg.chat)}
    <span>Bot hunters (restart)</span>${sel('hunters', [0, 1, 2, 3, 4], ZR.cfg.hunters)}
    <span>Stream delay (sim)</span>${sel('delay', [0, 3, 6, 10, 15], ZR.cfg.delay)}
    <span>Twitch channel</span><span><input data-k="twch" value="${ZRS.twCh || 'weaselwonder'}" style="width:130px;font:700 14px system-ui;background:#2a221a;color:#f3ead8;border:2px solid #3a3025;border-radius:8px;padding:5px"> ${b('tw', 'Connect')} <i style="color:#b9ad97">${ZRS.twStatus || ''}</i></span>
