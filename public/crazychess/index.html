@@ -1899,7 +1899,7 @@ if(document.body.className==='host'){
     const name = $('plName').value.trim(); if (!name) { $('plErr').textContent = 'Enter a name first'; return; }
     try { localStorage.setItem('cc_name', name); } catch (e) {}
     $('plErr').textContent = 'Joining…'; link.send({ t: 'join', id: myId, name, team: team === 'auto' ? '' : team });
-    setTimeout(() => { if (!me) $('plErr').textContent = v ? 'No answer from the game. Try again.' : 'The live game is not running right now.'; }, 3000);
+    setTimeout(() => { if (!me && $('plErr').textContent === 'Joining…') $('plErr').textContent = v ? 'No answer from the game. Try again.' : 'The live game is not running right now.'; }, 4000);
   };
   link.on(m => {
     if (!m || m.t !== 'joined' || m.id !== myId) return;
