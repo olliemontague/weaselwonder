@@ -49,3 +49,30 @@
   ["CONNECTING", "OPEN", "CLOSING", "CLOSED"].forEach((k, i) => window.WebSocket[k] = i);
   try { const z = JSON.parse(localStorage.getItem("zb_stream_settings") || "{}"); if (z.ttKey && !/^tiktools:/.test(localStorage.getItem("cc-tt") || "")) localStorage.setItem("cc-tt", "tiktools://"); } catch (e) {}
 })();
+
+/* Stream session (r22): Corpse Crafter announces itself to /streamer, and gets an End game button in its settings
+   drawer (H), under the TikTok window button. End game shows "Game ended" in this tab; /streamer unlocks the next game. */
+(function () {
+  if (!location.pathname.startsWith("/corpsecrafter/weasel")) return;
+  const s = document.createElement("script");
+  s.src = "/assets/ww-session.js";
+  s.onload = () => { if (window.WWSession) WWSession.game({ slug: "corpse-crafter", title: "Corpse Crafter" }); };
+  (document.head || document.documentElement).appendChild(s);
+  const end = () => {
+    if (!confirm("End Corpse Crafter? Chat closes and you pick the next game on /streamer.")) return;
+    if (window.WWSession) WWSession.end(); else location.replace("/streamer/ended.html?game=Corpse%20Crafter");
+  };
+  let n = 0;
+  const iv = setInterval(() => {
+    if (document.getElementById("ccEnd")) return clearInterval(iv);
+    const anchor = document.getElementById("dTikTok") || document.getElementById("dFull");
+    if (anchor) {
+      const b = document.createElement("button"); b.type = "button"; b.id = "ccEnd"; b.textContent = "⏹ End game";
+      b.style.cssText = "display:block;width:100%;margin:8px 0 2px;padding:10px 14px;border:0;border-radius:12px;cursor:pointer;font:800 15px system-ui,sans-serif;color:#fff;background:#a8322a";
+      b.onclick = end;
+      (anchor.id === "dTikTok" ? anchor : (anchor.closest(".grid") || anchor)).after(b);
+      return clearInterval(iv);
+    }
+    if (++n > 40) clearInterval(iv);
+  }, 500);
+})();

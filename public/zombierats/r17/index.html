@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>ZombieRats · stream</title>
+<meta name="viewport" content="width=1920">
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet">
+<style>
+  :root{--gold:#e8c37a;--ink:#f3ead8;--dim:#b9ad97;--card:#1d1813e8;--line:#3a3025}
+  html,body{margin:0;height:100%;background:#0e0d0b;color:var(--ink);font:600 18px system-ui;overflow:hidden}
+  #stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;background:radial-gradient(ellipse at 50% 40%,#1e2620,#0b0c0a 70%)}
+  .col{position:absolute;top:20px;bottom:20px;display:flex;flex-direction:column;gap:12px}
+  #left{left:28px;width:600px} #right{right:28px;width:600px}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:12px 18px;box-shadow:0 10px 30px #0008}
+  h1{font:400 54px 'Black Ops One',system-ui;color:var(--gold);margin:0;letter-spacing:.04em;text-shadow:0 4px 0 #000}
+  .tag{font:800 14px system-ui;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+  .play{font:800 26px system-ui;color:#1b140c;background:var(--gold);border-radius:14px;padding:12px 16px;text-align:center}
+  .play b{display:block;font:400 30px 'Black Ops One',system-ui}
+  .how div{display:flex;gap:10px;margin:3px 0;font-size:17px} .how i{font-style:normal;color:var(--gold);font-weight:900;min-width:70px}
+  #status{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 12px;font-size:17px} #status span{color:var(--dim)} #status b{color:var(--gold)}
+  #vote .row{display:flex;align-items:center;gap:10px;margin:4px 0;font-size:19px}
+  #vote .num{width:34px;height:34px;border-radius:10px;background:var(--gold);color:#1b140c;display:grid;place-items:center;font-weight:900}
+  #vote .bar{flex:1;height:30px;border-radius:9px;background:#2a221a;position:relative;overflow:hidden}
+  #vote .bar i{position:absolute;inset:0 auto 0 0;background:#7a9a5a;transition:width .4s}
+  #vote .bar span{position:absolute;left:10px;top:3px} #vote .row em{font-style:normal;width:40px;text-align:right;color:var(--gold)}
+  #vote .row.host .bar{outline:2px solid var(--gold)}
+  #board ol{margin:6px 0 0;padding:0;list-style:none;font-size:20px} #board li{display:flex;gap:10px;padding:3px 0;border-top:1px solid var(--line)}
+  #board li b{flex:1} #board li em{font-style:normal;color:var(--gold)} #board li small{color:var(--dim)}
+  #board li.top b{color:#ffd27a}
+  #game{position:absolute;left:656px;top:0;width:608px;height:1080px;border:0;background:#000}
+  #gamebox{position:absolute;left:652px;top:0;width:616px;height:1080px;box-shadow:0 0 0 4px var(--gold),0 0 60px #000}
+  #cam{height:420px;border:4px solid var(--gold);border-radius:18px;position:relative;background:transparent}
+  #cam .name{position:absolute;left:50%;bottom:-22px;transform:translateX(-50%);background:var(--gold);color:#1b140c;font:400 30px 'Black Ops One',system-ui;padding:6px 22px;border-radius:12px;white-space:nowrap}
+  #chat{flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;font-size:19px}
+  #chat div{line-height:1.3} #chat b{color:var(--gold)} #chat .sys{color:#9fd08a} #chat .bad{color:#ff9a8a}
+  .pf{display:inline-block;width:22px;text-align:center;margin-right:4px}
+  #banner{position:absolute;left:656px;width:608px;top:110px;display:none;text-align:center;z-index:5}
+  #banner .in{margin:0 30px;background:#a8322aee;border:4px solid #000;border-radius:20px;padding:16px;font:900 30px system-ui;box-shadow:0 10px 40px #000}
+  #banner .in b{display:block;font:400 64px 'Black Ops One',system-ui;color:#ffe08a}
+  #banner .in small{display:block;font-size:22px;margin-top:6px}
+  #pv{position:absolute;left:656px;top:0;width:608px;height:1080px;pointer-events:none;z-index:5}
+  #top5{position:absolute;left:12px;top:118px;width:250px;background:#14100ce0;border:2px solid var(--gold);border-radius:14px;padding:8px 12px;font-size:16px}
+  #top5 .h{font:900 12px system-ui;letter-spacing:.16em;color:var(--gold)} #top5 ol{margin:4px 0;padding:0;list-style:none}
+  #top5 li{display:flex;gap:6px;align-items:baseline;padding:2px 0;white-space:nowrap;overflow:hidden} #top5 li span{font-size:18px} #top5 li b{flex:1;overflow:hidden;text-overflow:ellipsis}
+  #top5 li em{font-style:normal;color:var(--gold);font-weight:900} #top5 li small{display:block;color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  #top5 .f{font-size:13px;color:var(--dim)} #top5 .f b{color:var(--gold)}
+  #plug{position:absolute;right:10px;bottom:70px;background:#14100cc8;border:1px solid #e8c37a88;border-radius:10px;padding:5px 10px;font:700 13px system-ui;color:var(--dim)} #plug b{color:var(--gold)}
+  #pip{position:absolute;right:12px;bottom:124px;width:210px;height:230px;border:4px solid var(--gold);border-radius:22px;box-shadow:0 0 0 3px #000,0 12px 34px #000c,inset 0 0 40px #000c;
+    background:radial-gradient(ellipse at 50% 35%,#3b4a3a 0%,#1f281f 55%,#0d110d 100%),repeating-linear-gradient(135deg,#ffffff08 0 10px,#0000 10px 20px);background-blend-mode:overlay}
+  #pip::before{content:'';position:absolute;inset:8px;border:1px dashed #e8c37a55;border-radius:15px}
+  #pip .on{position:absolute;left:12px;top:10px;background:#a8322a;color:#fff;font:900 11px system-ui;letter-spacing:.14em;padding:3px 8px;border-radius:8px;box-shadow:0 2px 6px #000}
+  #pip .name{position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);background:var(--gold);color:#1b140c;font:400 20px 'Black Ops One',system-ui;padding:4px 14px;border-radius:10px;border:2px solid #000;white-space:nowrap}
+  body.nopip #pip{display:none}
+  #voteBig{position:absolute;left:24px;right:24px;top:150px;display:none;background:#16110cf2;border:4px solid var(--gold);border-radius:24px;padding:18px 20px;box-shadow:0 20px 60px #000}
+  #voteBig .vh{display:flex;justify-content:space-between;align-items:center;background:#a8322a;margin:-18px -20px 12px;padding:10px 20px;border-radius:20px 20px 0 0;font:400 46px 'Black Ops One',system-ui;color:#fff}
+  #voteBig .vh b{font:400 54px 'Black Ops One',system-ui;color:#ffe08a}
+  #voteBig .vx{font:800 24px system-ui;text-align:center;margin-bottom:10px;line-height:1.25} #voteBig .vx b{color:#ffe08a}
+  .vr{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .vr .n{width:58px;height:58px;border-radius:14px;background:var(--gold);color:#1b140c;display:grid;place-items:center;font:900 36px system-ui;flex:none}
+  .vr .bx{flex:1;position:relative;height:58px;border-radius:12px;background:#2a221a;overflow:hidden}
+  .vr .bx i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#5f8a3e,#8ab85a);transition:width .5s}
+  .vr .bx span{position:absolute;left:12px;top:5px;font:900 22px system-ui;text-shadow:0 2px 3px #000}
+  .vr .bx small{position:absolute;left:12px;bottom:4px;font:700 14px system-ui;color:#e8dcc4;text-shadow:0 1px 2px #000}
+  .vr em{width:74px;text-align:right;font:900 26px system-ui;color:var(--gold);font-style:normal} .vr.lead .bx{outline:3px solid #ffe08a}
+  #vbEnd{pointer-events:auto;margin-left:10px;font:800 15px system-ui;padding:5px 12px;border-radius:10px;border:2px solid #000;background:var(--gold);color:#1b140c;cursor:pointer}
+  #voteBig .vf{text-align:center;color:var(--dim);font:700 18px system-ui;margin-top:8px}
+  #startbox{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:20}
+  #startbox .card{width:560px;text-align:center} #startbox button{font:900 26px system-ui;padding:14px 24px;border-radius:14px;border:0;background:var(--gold);color:#1b140c;cursor:pointer;margin:6px}
+  #setbtn{position:fixed;right:10px;bottom:8px;z-index:21;background:#0006;color:#fff8;border:1px solid #fff3;border-radius:10px;font:700 13px system-ui;padding:6px 10px;cursor:pointer}
+  #settings{position:fixed;right:0;top:0;bottom:0;width:520px;background:#16120e;border-left:3px solid var(--gold);z-index:30;overflow-y:auto;padding:18px 22px;display:none;font-size:15px}
+  #settings h2{color:var(--gold);margin:4px 0 8px} #settings h3{margin:16px 0 6px;color:var(--dim);font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+  #settings label{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:6px 0}
+  #settings input,#settings select{font:600 15px system-ui;background:#2a221a;color:var(--ink);border:2px solid var(--line);border-radius:8px;padding:6px 8px;width:220px}
+  #settings input[type=number]{width:90px}
+  #settings button{font:800 15px system-ui;padding:8px 12px;border-radius:10px;border:2px solid var(--line);background:#2a221a;color:var(--ink);cursor:pointer;margin:4px 4px 0 0}
+  #settings button.primary{background:var(--gold);color:#1b140c}
+  .st{font-size:13px;color:var(--dim)} .st.ok{color:#9fd08a} .st.err{color:#ff9a8a}
+</style></head><body>
+<div id="stage">
+  <div class="col" id="left">
+    <div class="card"><h1>ZOMBIERATS</h1><div class="tag">Live with weaselwonder · a town against the zombie rats</div></div>
+    <div class="play">PLAY WITH ME<b>www.weaselwonder.com</b></div>
+    <div class="card how">
+      <div><i>join</i>type it in chat to become a citizen mouse</div>
+      <div><i>1 to 5</i>vote when the town hall calls a vote</div>
+      <div><i>chat</i>every comment earns a point (30 s cooldown)</div>
+      <div><i>gifts</i>bonus points. The top 5 get roles: Mayor, Sheriff…</div>
+      <div><i>miss 3</i>title holders who skip 3 votes are cast out to the rats</div>
+    </div>
+    <div class="card" id="vote"><div class="tag" id="voteHead">Town hall vote</div><div id="voteRows"></div></div>
+    <div class="card" id="statusCard"><div id="status"></div></div>
+    
+  </div>
+  <div id="gamebox"></div>
+  <iframe id="game" src="/tutorial/?mode=stream" allow="autoplay; fullscreen"></iframe>
+  <div id="pv">
+  <div id="top5"><div class="h">TOP CITIZENS</div><ol id="top5List"></ol><div class="f">type <b>join</b> to play</div></div>
+  <div id="pip"><span class="on">● LIVE</span><div class="name">WEASELWONDER</div></div>
+  <div id="plug">PLAY WITH ME · <b>www.weaselwonder.com</b></div>
+  <div id="voteBig"><div class="vh"><span>VOTE NOW</span><b id="vbT">60</b></div>
+    <div class="vx">The town hall builds what wins.<br>Type the <b>number</b> in chat!</div>
+    <div id="vbRows"></div><div class="vf"><span id="vbN">0 votes</span> · game paused <button id="vbEnd">End vote ⏭ (E)</button></div></div>
+</div>
+  <div class="col" id="right">
+    <div id="cam"><div class="name">WEASELWONDER</div></div>
+    <div style="height:14px"></div>
+    <div class="card" id="chat"></div>
+  </div>
+</div>
+<div id="startbox"><div class="card"><h1>ZOMBIERATS</h1><p>Stream mode. Connect chat in Settings, then start.</p>
+  <button id="startGo">▶ Start the town</button><button id="startSet">⚙ Settings</button><div class="st" id="startSt">Loading the game…</div></div></div>
+<div id="hiddenWarn" style="display:none;position:fixed;left:0;right:0;top:0;z-index:40;background:#a8322a;color:#fff;font:800 18px system-ui;padding:8px;text-align:center">⚠ This tab was in the background, so the game slowed down for players. Keep the stream page in its own window (or in OBS) while live.</div>
+<button id="setbtn">⚙ weaselwonder settings (S)</button>
+<div id="settings">
+  <h2>Weaselwonder settings</h2>
+  <h3>Game controls</h3>
+  <div><button id="gPause">⏸ Pause / resume (P)</button><button id="gRestart">↺ Restart the town</button><button id="gEnd" style="background:#a8322a;color:#fff">⏹ End game &amp; log out</button></div>
+  <div class="st">End game tells every website player "Game ended" and sends them back to the home page, then logs you out of the stream page.</div>
+  <h3>Layout</h3>
+  <label>Cam frame in the portrait view (C) <input id="cPip" type="checkbox" style="width:auto"></label>
+  <h3>Chat sources</h3>
+  <label>Twitch channel <input id="twCh" placeholder="weaselwonder"></label>
+  <div><button id="twGo">Connect Twitch</button> <span class="st" id="twSt">not connected</span></div>
+  <label>TikTok username <input id="ttUser" placeholder="weaselwonder"></label>
+  <label>tik.tools API key <input id="ttKey" type="password" placeholder="stays in this browser"></label>
+  <div><button id="ttGo">Connect TikTok</button> <span class="st" id="ttSt">not connected</span></div>
+  <div class="st">Test before going live: put any creator who is live right now in the TikTok username box and connect. Their chat should appear on the right (nobody joins your town unless you start the game).</div>
+  <h3>Website players (go live)</h3>
+  <div><button id="liveGo" class="primary">🔴 Go live: open the town to website players</button> <span class="st" id="liveSt">offline</span></div>
+  <label>Mouse slots (players who can level up) <input id="cMaxP" type="number" min="1" max="25"></label>
+  <div class="st">Players beyond the mouse slots join as ghost rats: they float around luring rats, and the longest-waiting ghost gets the next free mouse slot.</div>
+  <label>Squirrel slots <input id="cMaxSq" type="number" min="1" max="10"></label>
+  <label>Rats for a potion <input id="cPot" type="number" min="1"></label>
+  <label>Squirrel start time (s) <input id="cSqS" type="number" min="10"></label>
+  <label>Seconds per kill <input id="cSqK" type="number" min="0"></label>
+  <label>Squirrel time cap (s) <input id="cSqC" type="number" min="30"></label>
+  <div class="st" id="livePlayers"></div>
+  <h3>Test chat</h3>
+  <label>Name <input id="tName" value="tester"></label>
+  <label>Message <input id="tMsg" value="join"></label>
+  <div><button id="tSend">Send as chat</button><button id="tGift">Send a 5-coin gift</button><button id="tBots">+10 test citizens</button></div>
+  <h3>Game</h3>
+  <label>Difficulty <select id="cDiff"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select></label>
+  <label>Vote every (s) <input id="cEvery" type="number" min="30" step="10"></label>
+  <label>Vote length (s) <input id="cLen" type="number" min="10" step="5"></label>
+  <label>Comment cooldown (s) <input id="cCool" type="number" min="0" step="5"></label>
+  <label>Points per vote <input id="cPV" type="number" min="0"></label>
+  <label>Points per comment <input id="cPC" type="number" min="0"></label>
+  <label>Points per gift coin <input id="cPG" type="number" min="0"></label>
+  <label>Missed votes to outcast <input id="cOut" type="number" min="1"></label>
+  <label>Max citizen mice on screen <input id="cMax" type="number" min="0" max="60"></label>
+  <div><button id="cVote">Call a vote now</button><button id="cEnd">End the vote</button><button id="cRestart">Restart the town</button></div>
+  <div style="margin-top:14px"><button class="primary" id="setClose">Done</button></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+if (location.search.includes('norender')) document.addEventListener('DOMContentLoaded', () => { $('game').src = '/tutorial/?mode=stream&norender=1'; });
+const SKEY = 'zb_stream_settings';
+const S = Object.assign({twCh:'weaselwonder', ttUser:'weaselwonder', ttKey:'', diff:'medium', voteEvery:180, voteLen:45, cooldown:30, ptsVote:1, ptsComment:1, ptsGiftCoin:2, outcastAfter:3, maxBodies:24, maxPlayers:10, maxSq:3, potionAt:5, sqStart:60, sqPerKill:5, sqCap:180}, (()=>{ try { return JSON.parse(localStorage.getItem(SKEY) || '{}'); } catch(e){ return {}; } })());
+if ((S.v || 1) < 2){ Object.assign(S, {v:2, diff:'medium', voteEvery:180, voteLen:45}); }   // new stream defaults (Oliver, 17:46)
+const save = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch(e){} };
+// scale the 1920x1080 stage to the window (OBS browser source at 1920x1080 shows it 1:1)
+function fit(){ const k = Math.min(innerWidth / 1920, innerHeight / 1080); $('stage').style.transform = `scale(${k})`; }
+addEventListener('resize', fit); fit();
+// portrait cam frame (bottom right of the game column): place the camera over it in LIVE Studio / OBS
+if (S.pip === undefined) S.pip = true;
+const applyPip = () => { document.body.classList.toggle('nopip', !S.pip); const c = $('cPip'); if (c) c.checked = !!S.pip; };
+document.addEventListener('DOMContentLoaded', () => { applyPip(); $('cPip').addEventListener('change', e => { S.pip = e.target.checked; save(); applyPip(); }); });
+addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 'c' || e.key === 'C'){ S.pip = !S.pip; save(); applyPip(); } });
+const G = () => $('game').contentWindow, Z = () => G() && G().ZB;
+// ---------- chat feed ----------
+const PF = {tt:'🎵', tw:'💜', test:'🧪', sys:''};
+function line(html, cls){ const d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = html; const c = $('chat'); c.appendChild(d); while (c.children.length > 40) c.removeChild(c.firstChild); }
+const esc = t => String(t).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+function onChat(plat, name, text){
+  if (!name) return; text = String(text || '').trim(); line(`<span class="pf">${PF[plat] || ''}</span><b>${esc(name)}</b> ${esc(text)}`);
+  const z = Z(); if (!z || !started) return; const t = text.toLowerCase().replace(/^!/, '');
+  if (t === 'join'){ z.join(name, plat); return; }
+  const m = t.match(/^([1-5])\b/); if (m){ z.join(name, plat); z.vote(name, plat, +m[1]); return; }
+  z.comment(name, plat);
+}
+function onGift(plat, name, coins, label){ line(`<span class="pf">${PF[plat] || ''}</span><b>${esc(name)}</b> sent ${esc(label || coins + ' coins')} 🎁`, 'sys'); const z = Z(); if (z && started) z.gift(name, plat, coins); }
+// ---------- Twitch: anonymous read-only IRC over WebSocket ----------
+let tw = null;
+function twConnect(){ if (tw) try { tw.onclose = null; tw.close(); } catch(e){} const ch = (S.twCh || '').toLowerCase().replace(/^#/, ''); if (!ch) return; $('twSt').textContent = 'connecting…'; $('twSt').className = 'st';
+  tw = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+  tw.onopen = () => { tw.send('CAP REQ :twitch.tv/tags'); tw.send('PASS SCHMOOPIIE'); tw.send('NICK justinfan' + (10000 + Math.floor(Math.random() * 80000))); tw.send('JOIN #' + ch); };
+  tw.onmessage = e => { for (const raw of String(e.data).split('\r\n')){ if (!raw) continue; if (raw.startsWith('PING')){ tw.send('PONG :tmi.twitch.tv'); continue; }
+    if (raw.includes(' 366 ')){ $('twSt').textContent = 'connected to #' + ch; $('twSt').className = 'st ok'; line(`Twitch chat connected (#${esc(ch)})`, 'sys'); }
+    const m = raw.match(/^(?:@(\S+) )?:(\w+)!\S+ PRIVMSG #\S+ :(.*)$/); if (!m) continue;
+    const tags = Object.fromEntries((m[1] || '').split(';').map(kv => kv.split('='))); const name = tags['display-name'] || m[2];
+    if (tags.bits) onGift('tw', name, +tags.bits, tags.bits + ' bits'); onChat('tw', name, m[3]); } };
+  tw.onclose = () => { $('twSt').textContent = 'disconnected, retrying…'; $('twSt').className = 'st err'; clearTimeout(twConnect.t); twConnect.t = setTimeout(twConnect, 5000); };
+}
+// ---------- TikTok via tik.tools ----------
+let tt = null, ttRetry = 0;
+function ttConnect(){ if (tt) try { tt.onclose = null; tt.close(); } catch(e){} if (!S.ttUser || !S.ttKey){ $('ttSt').textContent = 'needs a username and API key'; $('ttSt').className = 'st err'; return; }
+  $('ttSt').textContent = 'connecting…'; $('ttSt').className = 'st';
+  tt = new WebSocket(`wss://api.tik.tools?uniqueId=${encodeURIComponent(S.ttUser.replace(/^@/, ''))}&apiKey=${encodeURIComponent(S.ttKey)}`);
+  tt.onopen = () => { ttRetry = 0; $('ttSt').textContent = 'connected to @' + S.ttUser.replace(/^@/, ''); $('ttSt').className = 'st ok'; if (ttConnect.said !== S.ttUser){ ttConnect.said = S.ttUser; line(`TikTok connected (@${esc(S.ttUser.replace(/^@/, ''))})`, 'sys'); } };
+  tt.onmessage = e => { let msg; try { msg = JSON.parse(e.data); } catch(err){ return; } const ev = msg.event || msg.type, d = msg.data || {};
+    const u = d.user || {}, name = u.nickname || u.uniqueId || d.user_unique_id || d.uniqueId; const id = u.uniqueId || d.user_unique_id || name;
+    if (ev === 'chat') onChat('tt', name, d.comment);
+    else if (ev === 'gift'){ if (d.giftType === 1 && !d.repeatEnd) return; const n = d.repeatCount || 1; onGift('tt', name, (d.diamondCount || 1) * n, `${n}× ${d.giftName || 'gift'}`); }
+    else if (ev === 'streamStatus' || ev === 'control'){ line('TikTok stream status: ' + esc(JSON.stringify(d).slice(0, 80)), 'sys'); }
+    else if (msg.error || ev === 'error'){ line('TikTok: ' + esc(msg.error || d.message || 'error'), 'bad'); } };
+  tt.onerror = () => { $('ttSt').textContent = 'error (wrong key, or that user is not live)'; $('ttSt').className = 'st err'; };
+  tt.onclose = e => { $('ttSt').textContent = `disconnected (${e.code}${e.reason ? ': ' + e.reason : ''})`; $('ttSt').className = 'st err'; if (S.ttAuto){ ttRetry++; clearTimeout(ttConnect.t); ttConnect.t = setTimeout(ttConnect, e.code === 4005 ? 60000 : Math.min(30000, 3000 * ttRetry)); if (e.code === 4005) $('ttSt').textContent = 'waiting for @' + S.ttUser.replace(/^@/, '') + ' to go live (checks every minute)'; } };
+}
+// ---------- overlay refresh ----------
+const ROLE = [['Mayor','🦡'],['Sheriff','🦊'],['Treasurer','🐹'],['Secretary','🐸'],['Councillor','🐰']];
+let started = false;
+function fmt(s){ s = Math.max(0, s|0); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function refresh(){
+  const z = Z(); if (!z || !started) return; const s = z.state(); const tot = Object.values(s.tally).reduce((a, b) => a + b, 0) || 1;
+  $('voteHead').textContent = s.vote ? `VOTE OPEN · ${s.vote.left}s · ${s.vote.n} voted` : `Town hall vote · next in ${fmt(s.nextVote)}`;
+  $('voteRows').innerHTML = s.opts.map(o => `<div class="row ${s.host === o.k ? 'host' : ''}"><div class="num">${o.i}</div><div class="bar"><i style="width:${(s.tally[o.k] / tot * 100).toFixed(0)}%"></i><span>${o.icon} ${o.n}</span></div><em>${s.tally[o.k]}</em></div>`).join('');
+  const DESC = {bag:'walls that hold the rats back', wire:'cuts up rats that walk through', trap:'snaps a rat: a free body', turret:'shoots rats by itself', box:'build an outpost further north'};
+  $('voteBig').style.display = s.vote ? 'block' : 'none';
+  if (s.vote){ const tv = Object.values(s.tally).reduce((a, b) => a + b, 0), lead = Math.max(...Object.values(s.tally)); $('vbT').textContent = s.vote.left; $('vbN').textContent = tv + (tv === 1 ? ' vote' : ' votes');
+    $('vbRows').innerHTML = s.opts.map(o => { const v = s.tally[o.k], pc = tv ? Math.round(v / tv * 100) : 0; return `<div class="vr ${v && v === lead ? 'lead' : ''}"><div class="n">${o.i}</div><div class="bx"><i style="width:${pc}%"></i><span>${o.icon} ${o.n}</span><small>${DESC[o.k]}</small></div><em>${tv ? pc + '%' : '·'}</em></div>`; }).join(''); }
+  $('status').innerHTML = `<span>Wave</span><b>${s.attacking ? 'WAVE ' + s.wave + ' ATTACKING' : 'next in ' + fmt(s.waveIn)}</b><span>Town fence</span><b>${Math.round(s.hall / s.hallMax * 100)}%</b>
+    <span>Corpse pile</span><b>${s.pile}</b><span>Outpost</span><b>${s.outpost ? 'level ' + s.outpost + ' · ' + s.outHp + ' hp' : 'none yet'}</b>
+    <span>Building</span><b>${s.saving ? (s.opts.find(o => o.k === s.saving) || {}).n + ' in ' + s.cycleIn + 's' : 'nothing voted'}</b><span>Citizens</span><b>${s.cit.filter(c => !c.outcast).length}</b><span>Difficulty</span><b>${s.diff}${s.crowd ? ' +' + s.crowd + ' rats/wave' : ''}</b>`;
+  const top = s.cit.filter(c => !c.outcast).sort((a, b) => b.pts - a.pts).slice(0, 5);
+  $('top5List').innerHTML = top.map((c, i) => `<li><span>${c.role >= 0 ? ROLE[c.role][1] : '🐭'}</span><b>${esc(c.name)}<small>${c.role >= 0 ? ROLE[c.role][0] : 'citizen'}</small></b><em>${c.pts}</em></li>`).join('') || '<li><b style="color:#b9ad97">nobody yet</b></li>';
+  $('top5').style.display = s.vote ? 'none' : 'block';
+  if (s.won && !refresh.ended){ refresh.ended = true; line('🏆 THE TOWN WON! The end zone is ours.', 'sys'); }
+  if (s.lost && !refresh.ended){ refresh.ended = true; line('💀 The town hall fell. Restarting soon…', 'bad'); }
+}
+setInterval(refresh, 500);
+document.addEventListener('visibilitychange', () => { const z = Z(); if (document.hidden && z && z.net && z.net().status === 'live') $('hiddenWarn').style.display = 'block'; });
+$('hiddenWarn').onclick = () => $('hiddenWarn').style.display = 'none';
+// game log: uploaded every minute (and on End game) so problems can be looked at afterwards. Kept 14 days
+function flushLog(){ const z = Z(); if (!z || !z.takeLog) return; const lines = z.takeLog(); if (!lines.length) return; fetch('/api/log', {method:'POST', body:lines.join('\n')}).catch(() => {}); }
+setInterval(flushLog, 60000); addEventListener('beforeunload', flushLog);
+// remember events (joins, roles, outcasts) from the game's toasts into the feed
+// ---------- settings ----------
+const map = {cMaxP:'maxPlayers', cMaxSq:'maxSq', cPot:'potionAt', cSqS:'sqStart', cSqK:'sqPerKill', cSqC:'sqCap', cDiff:'diff', cEvery:'voteEvery', cLen:'voteLen', cCool:'cooldown', cPV:'ptsVote', cPC:'ptsComment', cPG:'ptsGiftCoin', cOut:'outcastAfter', cMax:'maxBodies'};
+function pushCfg(){ const z = Z(); if (!z) return; const o = {}; for (const k of Object.values(map)) o[k] = k === 'diff' ? S[k] : +S[k]; z.setCfg(o); }
+function loadForm(){ $('twCh').value = S.twCh; $('ttUser').value = S.ttUser; $('ttKey').value = S.ttKey; for (const [id, k] of Object.entries(map)) $(id).value = S[k]; }
+loadForm();
+for (const [id, k] of Object.entries(map)) $(id).addEventListener('change', () => { S[k] = $(id).type === 'number' ? +$(id).value : $(id).value; save(); pushCfg(); });
+for (const [id, k] of [['twCh','twCh'],['ttUser','ttUser'],['ttKey','ttKey']]) $(id).addEventListener('change', () => { S[k] = $(id).value.trim(); save(); });
+$('twGo').onclick = twConnect;
+$('liveGo').onclick = () => { if (!Z() || !started){ $('liveSt').textContent = 'start the town first'; return; } const n = Z().net();
+  if (n.status === 'live' || n.status === 'connecting' || n.status === 'reconnecting'){ if (!confirm('Go offline? Website players are told the game ended and sent back to the home page. Your town keeps running.')) return; Z().goOffline(); flushLog(); }
+  else Z().goLive(''); };   // your /stream login is the host pass
+setInterval(() => { const z = Z(); if (!z || !z.net) return; const n = z.net(); const on = n.status === 'live' || n.status === 'connecting' || n.status === 'reconnecting';
+  $('liveGo').textContent = on ? '⏹ Go offline: close the town to website players' : '🔴 Go live: open the town to website players'; $('liveGo').style.background = on ? '#a8322a' : ''; $('liveGo').style.color = on ? '#fff' : '';
+  $('setbtn').textContent = (on ? '● LIVE · ' : '○ offline · ') + '⚙ weaselwonder settings (S)'; $('setbtn').style.color = on ? '#ff8a7a' : '';
+  $('liveSt').textContent = n.status; $('liveSt').className = 'st ' + (n.status === 'live' ? 'ok' : n.status === 'offline' ? '' : 'err');
+  $('livePlayers').innerHTML = n.players.length ? n.players.map(p => `${p.kind === 'squirrel' ? '🐿️' : '🐭'} ${esc(p.name)} · ${p.pts} pts${p.kind === 'squirrel' && n.timers ? ' · ' + p.sqT + 's' : ''} <a href="#" data-k="${esc(p.name)}" style="color:#ff9a8a">kick</a>`).join('<br>') : 'No website players yet';
+  $('livePlayers').querySelectorAll('a').forEach(a => a.onclick = ev => { ev.preventDefault(); z.kickPlayer(a.dataset.k); }); }, 1000); $('ttGo').onclick = () => { S.ttAuto = true; ttConnect(); };
+$('tSend').onclick = () => onChat('test', $('tName').value, $('tMsg').value);
+$('tGift').onclick = () => onGift('test', $('tName').value, 5, '5-coin test gift');
+$('tBots').onclick = () => { for (let i = 0; i < 10; i++){ const n = 'test' + Math.floor(Math.random() * 900 + 100); onChat('test', n, 'join'); } };
+$('cVote').onclick = () => Z() && Z().openVote(); $('cEnd').onclick = () => Z() && Z().closeVote();
+$('cRestart').onclick = () => { if (!confirm('Restart the town? Citizens and points are kept.')) return; const z = Z(); if (z){ z.start(S.diff); refresh.ended = false; } };
+const openSet = v => { $('settings').style.display = v ? 'block' : 'none'; };
+$('setbtn').onclick = () => openSet($('settings').style.display !== 'block'); $('setClose').onclick = () => openSet(false); $('startSet').onclick = () => openSet(true);
+addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === 's' || e.key === 'S') openSet($('settings').style.display !== 'block'); });
+// host votes with the number keys while the game has focus too
+function hostKeys(e){ if (!Z()) return; if (/^[1-5]$/.test(e.key) && Z().STREAM.window){ Z().hostVote(+e.key); } if ((e.key === 'e' || e.key === 'E') && Z().STREAM.window) Z().closeVote(); }
+addEventListener('keydown', hostKeys);
+$('vbEnd').onclick = () => Z() && Z().closeVote();
+$('gPause').onclick = () => { const g = G(); if (g && g.__zb) g.__zb.togglePause(); };
+$('gRestart').onclick = () => { if (!confirm('Restart the town? Citizens and points are kept.')) return; const z = Z(); if (z){ z.start(S.diff); refresh.ended = false; } };
+$('gEnd').onclick = () => { if (!confirm('End the game? Website players are sent back to the home page.')) return; const z = Z(); if (z && z.endGame) z.endGame(); flushLog();
+  try { if (tw){ tw.onclose = null; tw.close(); } if (tt){ tt.onclose = null; tt.close(); } } catch(e){}
+  setTimeout(() => { document.cookie = 'zb_stream=; Path=/; Max-Age=0'; location.href = '/api/stream-logout'; }, 1200); };
+// ---------- start ----------
+let ready = false;
+addEventListener('message', e => { if (e.data && e.data.zb === 'ready'){ ready = true; } });
+const poll = setInterval(() => { const g = G(); const go = g && g.document && g.document.getElementById('go'); if (go && !go.disabled){ ready = true; $('startSt').textContent = 'Game loaded.'; clearInterval(poll); } }, 500);
+$('startGo').onclick = () => { if (!ready){ $('startSt').textContent = 'Still loading the game, one moment…'; return; }
+  pushCfg(); G().document.getElementById('go').click(); started = true; $('startbox').style.display = 'none';
+  setTimeout(() => { pushCfg(); try { G().addEventListener('keydown', hostKeys); } catch(e){} $('game').focus(); }, 300);
+  line('The town is open. Type <b>join</b> to become a citizen!', 'sys');
+  if (S.twCh) twConnect(); if (S.ttUser && S.ttKey){ S.ttAuto = true; ttConnect(); } };
+</script>
+<script src="/assets/dual-stream.js" defer></script>
+</body></html>

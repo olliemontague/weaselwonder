@@ -6,23 +6,23 @@ window.WW_GAMES = [
     slug: "zombierats",
     title: "ZombieRats",
     tagline: "Hold the town against the zombie rats.",
-    blurb: "A close-up 3D survival game. Collect rat bodies, turn them into crossbows, wire and turrets, and push outposts north until you take the woods.",
+    blurb: "A close-up 3D survival game. Weasel hunts and lures zombie rats out of their nests while chat's mice collect the bodies and fetch wire, sandbags, traps and turrets. Clear the nests to win.",
     art: "zombierats.svg", card: "zombierats-shot.jpg",
     accent: "#7fbf3f",
     status: "live",            // live | playtest | retired | soon
-    version: "r17",
-    versionDate: "17 Nov 2026",
+    version: "v1.3",
+    versionDate: "20 Nov 2026",
     offline: [
       { label: "Play the tutorial", url: "/tutorial/", primary: true, note: "13 stages, about 20 minutes, works on phones" },
       { label: "Free play (Easy, Medium, Hard)", url: "/tutorial/?stage=14", note: "Stage 14 of the tutorial, single player with bot mice" }
     ],
-    join: { label: "Join weasel's town", url: "/play/", note: "Up to 10 mice, then ghost rats" },
+    join: { label: "Comment in chat to join", url: null, note: "Your first comment drops your mouse into weasel's town. Type 1 to 4 to fetch what he needs" },
     stream: { label: "ZombieRats streamer view", url: "/zombierats/" },
     how: [
-      ["Collect", "Every rat that dies leaves a body. Carry bodies to the corpse pile: they are the town's only resource."],
-      ["Build", "The factory turns bodies into crossbows, barbed wire, sandbags, traps and turrets. Chat votes on what it makes next."],
-      ["Breed", "Rats grow by eating the dead. Lure a big one into a trap and it is worth several bodies. Get it wrong and it eats you."],
-      ["Push north", "Carry outpost boxes up the map, link them home with conveyor belts and build an outpost in the end zone to win."]
+      ["Comment", "Your first comment drops your mouse into weasel's town. It collects dead rats for the pile."],
+      ["Fetch", "Type 1 wire, 2 sandbags, 3 trap or 4 turret and your mouse fetches it for weasel."],
+      ["Help weasel", "Bring what weasel asks for: +3 points. The top 5 get titles. Follow +5, gifts +2 a coin."],
+      ["Clear the nests", "Weasel hunts and lures the rats. Rats near a nest drag bodies home, so take the nests out to win."]
     ],
     shots: [
       ["Live: red alert, a rat eats a body and grows to size 3", "zombierats-shot.jpg"],

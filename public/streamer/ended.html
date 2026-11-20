@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Game ended · weaselwonder</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#0f120d;color:#f3ead8;font:600 18px system-ui,sans-serif}
+  main{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+  h1{font:400 56px 'Black Ops One',system-ui;color:#e8c37a;margin:0}
+  p{margin:0;color:#b9b2a2}
+  a{display:inline-block;margin-top:10px;padding:12px 22px;border-radius:12px;background:#e8c37a;color:#1b140c;font-weight:800;text-decoration:none}
+</style>
+</head>
+<body>
+<main>
+  <h1 id="h">Game ended</h1>
+  <p>Chat and website players for this game are closed. Pick the next game on the streamer page.</p>
+  <a href="/streamer/">Back to /streamer</a>
+</main>
+<script>
+  const g = new URLSearchParams(location.search).get("game");
+  if (g) { document.getElementById("h").textContent = g.slice(0, 40) + " ended"; document.title = g.slice(0, 40) + " ended · weaselwonder"; }
+</script>
+</body>
+</html>

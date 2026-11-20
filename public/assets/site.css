@@ -136,7 +136,9 @@ body.live-here .livebar{display:none}
 .srow small{color:var(--mute)}
 .srow.active{border-color:var(--red);box-shadow:0 0 0 3px rgba(224,65,47,.25)}
 @media(max-width:620px){.srow{grid-template-columns:90px 1fr}.srow .acts{grid-column:1/-1}}
-.acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.srun{color:#ffb4a8;font-weight:700;max-width:220px;text-align:right}
+.srun.ok{color:#9fd08a}
 
 footer{padding:40px 0 70px;color:var(--dim);font-size:14px;border-top:1px solid rgba(255,255,255,.06);margin-top:30px}
 footer .row a{color:var(--mute);text-decoration:none}

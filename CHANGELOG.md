@@ -98,3 +98,17 @@
 - Live room: website players on their own phones join the streamer's game through the server (Durable Object instance "crazychess"). Only a browser with the streamer login can be the game window; a second game window replaces the first. Players can only move their own piece; a closed phone drops out after 20 s.
 - On the site, simulated viewers are off by default (switch them on in the Chat tab).
 - games.js: CrazyChess marked live, Join from your browser, stream mode link.
+
+## r22 · 2026-11-20 (stream session step 1, ZombieRats v1.3 live)
+- ZombieRats v1.3 is now the live ZombieRats at /zombierats/ (streamer login), launched by Go live on /streamer. Viewers join by commenting (no website players in v1.3). /zombierats/next/ redirects to /zombierats/.
+- Old ZombieRats r17 streamer view archived at /zombierats/r17/ (unchanged, not linked). /play/ and /tutorial/ still run r17.
+- ZombieRats portrait (TikTok) window: camera card (LIVE / WEASELWONDER box) removed; Oliver's camera covers the bottom of the frame. PLAY WITH ME moved above the camera band. Landscape camera frame keeps the WEASELWONDER tag, LIVE pill removed.
+- New /assets/ww-session.js: each game's streamer view tells /streamer it is running (heartbeat) and ends itself when asked. Ended tabs show /streamer/ended.html.
+- /streamer: games open in one reused tab ("ww_game"), so a reopen never makes a second copy. While a game is live the other games show "End <game> first". Live row: Running / Game tab not open, Live now: show tab (focuses it, no reload), End game. "Go offline" is now "End stream" and also ends the game.
+- End game in every game: ZombieRats host panel (H), CrazyChess control panel top bar (tap twice), Corpse Crafter settings drawer (H). Ending from inside a game also clears the site's live state. No log out inside games.
+- CrazyChess: the old End game (back to the lobby) is now End match.
+- Navy Chess: the Battleship is longer and wider with three big triple-barrel turrets (two forward, one aft), so it no longer looks like the Destroyer.
+- Navy Chess: fleets start spread out over their deployment zone (the 3 rows nearest each side: bottom 3 Red, top 3 Blue), split evenly over the rows, spaced across the width and staggered, with types alternating. Blue mirrors Red.
+- CrazyChess (both games): new "Last turn (finish game)" button next to End turn now. The current turn becomes the last one, then the game is scored as if the turns ran out.
+- Navy Chess: the streamer's ship is a random free Red ship, like everyone else's.
+- CrazyChess is now v1.4: G:\My Drive\Weaselwonder\Game builds\Crazy chess\v1.4 stream preview (src/ builds to exactly public/crazychess/index.html).

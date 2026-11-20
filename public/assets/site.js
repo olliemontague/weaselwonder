@@ -204,14 +204,14 @@
           <div class="row" style="justify-content:space-between"><div><div class="kicker">Streamer mode</div>
           <h1 class="logo" style="font-size:52px;margin:6px 0">Pick tonight's game</h1></div>
           <div class="row"><span class="pill" id="sp"><i></i><span>Offline</span></span>
-          <button class="btn ghost" id="go-off">Go offline</button>
+          <button class="btn ghost" id="go-off">End stream</button>
           <a class="btn ghost" href="${PROTO ? "#" : "/api/stream-logout"}">Log out</a></div></div>
-          <p class="sub">"Go live and open" puts the game on the home page for viewers and opens its streamer view in a new tab (use that tab as the OBS browser source, 1920x1080). Come back here and press "Go offline" when you finish.</p>
+          <p class="sub">"Go live and open" puts the game on the home page for viewers and opens its streamer view in the game tab (one tab, reused, so your OBS capture stays the same). One game at a time: press "End game" before going live with the next one. "End stream" when you finish.</p>
           <div class="slist">${G.map(g => `
             <div class="srow" data-slug="${g.slug}"><div class="img" style="background-image:url(${art(g)})"></div>
               <div><h3>${esc(g.title)}</h3><small>${esc(g.version)} · ${esc(g.versionDate)} · ${g.stream && g.stream.url ? esc(g.stream.url) : "no stream mode yet"}</small></div>
               <div class="acts">${g.stream && g.stream.url
-                ? `<a class="btn live" data-go="${g.slug}" href="${esc(href(g.stream.url))}" target="_blank" rel="noopener">Go live and open</a>`
+                ? `<small class="srun" hidden></small><a class="btn live" data-go="${g.slug}" href="${esc(href(g.stream.url))}" target="ww_game">Go live and open</a><button type="button" class="btn ghost" data-end="${g.slug}" hidden>End game</button><span class="btn soon" data-wait hidden aria-disabled="true"></span>`
                 : `<span class="btn soon" aria-disabled="true">Go live <em>Soon</em></span>`}</div></div>`).join("")}</div>
           <div class="chatset"><h2 class="t" style="font-size:24px">Chat connections</h2>
             <p class="sub">Used by every game's streamer view (ZombieRats and Corpse Crafter). Saved in this browser only. Reload the game tab after saving.</p>
@@ -225,8 +225,28 @@
           <div class="devnote">Prototype: Go live here flips the mock state, so open the home page to see the live view.</div>
         </div></section>`;
         // Opens the game's host view in a new tab (so it is never popup-blocked) and marks the site live at the same moment.
-        m.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => setLive(b.dataset.go)));
-        document.getElementById("go-off").onclick = () => setLive("");
+        // The game opens in one named tab ("ww_game"), so a reopen never makes a second copy. One game at a time:
+        // the other games' Go live buttons wait until End game (see streamerLive).
+        m.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", e => {
+          const slug = b.dataset.go;
+          if (live.live && live.game === slug) {
+            // already live: if its tab is running, just bring it forward (a reload would restart the game)
+            if (window.WWSession && WWSession.alive(slug)) { e.preventDefault(); const w = window.open("", "ww_game"); if (w) w.focus(); }
+            return;
+          }
+          setLive(slug);
+        }));
+        m.querySelectorAll("[data-end]").forEach(b => b.onclick = () => endGame(b.dataset.end, b));
+        document.getElementById("go-off").onclick = () => {
+          if (live.live && !confirm("End the stream? The live game ends and the site goes offline.")) return;
+          if (live.live && window.WWSession) WWSession.endGame(live.game);
+          setLive("");
+        };
+        if (window.WWSession && !PROTO) WWSession.watch(async st => {
+          // a game ended itself (its own End game button): it clears the live flag, so re-read it
+          if (!st.alive && live.live && live.game === st.slug) { await new Promise(r => setTimeout(r, 800)); live = await readLive(); applyLive(); }
+          renderers.streamerLive(live.live && byslug(live.game));
+        });
         const cf = document.getElementById("chatform");
         if (cf && window.WWChat) {
           const v = WWChat.get(); cf.twitch.value = v.twitch; cf.ttUser.value = v.ttUser; cf.ttKey.value = v.ttKey;
@@ -247,12 +267,32 @@
     streamerLive(g) {
       document.querySelectorAll(".srow").forEach(r => {
         const on = g && r.dataset.slug === g.slug; r.classList.toggle("active", !!on);
-        const b = r.querySelector("[data-go]"); if (b) b.textContent = on ? "Live now: reopen" : "Go live and open";
+        const b = r.querySelector("[data-go]"); if (!b) return;
+        const end = r.querySelector("[data-end]"), wait = r.querySelector("[data-wait]"), run = r.querySelector(".srun");
+        const blocked = !!g && !on;                                  // another game is live: End game first
+        const alive0 = on && window.WWSession && WWSession.alive(g.slug);
+        b.hidden = blocked; b.textContent = on ? (alive0 ? "Live now: show tab" : "Live now: reopen") : "Go live and open";
+        end.hidden = !on; wait.hidden = !blocked; if (blocked) wait.textContent = "End " + g.title + " first";
+        const alive = on && window.WWSession && WWSession.alive(g.slug);
+        run.hidden = !on || PROTO; run.textContent = alive ? "● Running" : "Game tab not open: reopen it or End game";
+        run.classList.toggle("ok", !!alive);
       });
       const sp = document.getElementById("sp");
       if (sp) { sp.classList.toggle("on", !!g); sp.querySelector("span").textContent = g ? "Live: " + g.title : "Offline"; }
     }
   };
+
+  // End game: the game tab tidies up (website players, chat) and shows "Game ended"; the site goes offline
+  // until the next Go live. Works even if the game tab was already closed.
+  async function endGame(slug, btn) {
+    const g = byslug(slug);
+    if (!confirm("End " + (g ? g.title : "the game") + "? Website players are told the game has ended.")) return;
+    if (btn) { btn.disabled = true; btn.textContent = "Ending…"; }
+    if (window.WWSession) WWSession.endGame(slug);
+    await new Promise(r => setTimeout(r, 1200));
+    await setLive("");
+    if (btn) { btn.disabled = false; btn.textContent = "End game"; }
+  }
 
   async function setLive(slug) {
     if (PROTO) { mockSet(slug); }
