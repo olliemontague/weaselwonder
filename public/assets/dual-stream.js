@@ -6,7 +6,7 @@
 (function () {
   if (window.WWDual) return;
   const PATH = location.pathname;
-  const isHost = PATH.startsWith("/corpsecrafter/weasel") || PATH.startsWith("/zombierats");
+  const isHost = PATH.startsWith("/corpsecrafter/weasel");   // ZombieRats and CrazyChess draw their own portrait (ww-stage.js)
   if (!isHost) return;
   const PREFERRED = PATH.startsWith("/corpsecrafter") ? "#hgl" : null;   // Corpse Crafter host game canvas
   let popup = null, timer = null;
@@ -63,49 +63,29 @@
       if (!win || win.closed) { clearInterval(timer); return; }
       const { box } = layers(main), W = win.innerWidth, H = win.innerHeight;
       const s = Math.max(W / box.width, H / box.height);          // fill the 9:16 window, crop the overflow
-      const ox = (W - box.width * s) / 2, oy = (H - box.height * s) / 2;
+      // Corpse Crafter wide view: centre the 9:16 slice on Weasel (the engine reports his screen x as CC_PX, 0..1)
+      const fx = typeof window.CC_PX === "number" ? Math.max(0, Math.min(1, window.CC_PX)) : 0.5;
+      const ox = Math.max(W - box.width * s, Math.min(0, W / 2 - box.width * s * fx)), oy = (H - box.height * s) / 2;
       vids.forEach(({ e, v }) => {
         const r = e.rect();
         Object.assign(v.style, { left: ox + (r.left - box.left) * s + "px", top: oy + (r.top - box.top) * s + "px", width: r.width * s + "px", height: r.height * s + "px" });
       });
     };
-    place(); timer = setInterval(place, 1000); win.addEventListener("resize", place);
+    place(); timer = setInterval(place, typeof window.CC_WIDE === "object" && window.CC_WIDE ? 33 : 1000); win.addEventListener("resize", place);
   }
 
-  function open() {
-    if (popup && !popup.closed) { popup.focus(); return; }
-    popup = window.open("/streamer/portrait.html", "ww_tiktok_portrait", "popup,width=540,height=960");
-    if (!popup) { alert("Allow pop-ups for weaselwonder.com to open the TikTok window."); return; }
+  // The session's TikTok portrait window (opened from /streamer) gets a frame we fill with the live game video.
+  const FRAME = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#000;overflow:hidden;font:600 15px system-ui,sans-serif;color:#cfd8d8}#stage{position:fixed;inset:0;overflow:hidden}#stage video{position:absolute;object-fit:fill;pointer-events:none}#msg{position:fixed;inset:auto 16px 16px 16px;text-align:center;text-shadow:0 1px 4px #000}</style></head><body><div id="stage"></div><div id="msg">Connecting to the game...</div></body></html>';
+  function mount(api) {
+    const c = api.claim(PATH.startsWith("/corpsecrafter") ? "corpse-crafter" : "game");
+    c.doc.open(); c.doc.write(FRAME); c.doc.close();
+    const go = () => attach(c.win); if (mainCanvas()) go(); else setTimeout(go, 1500);
+    return c.token;
   }
-  window.WWDual = { attach, open };
-
-  const JUICY = "display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:8px 0 2px;padding:12px 14px;border:0;border-radius:12px;cursor:pointer;" +
-    "font:800 15px system-ui,sans-serif;color:#fff;background:linear-gradient(90deg,#25f4ee,#fe2c55);text-shadow:0 1px 2px #0006;" +
-    "box-shadow:0 4px 0 #8a1830,0 8px 18px #fe2c5555";
-  function makeBtn(id) {
-    const b = document.createElement("button"); b.type = "button"; b.id = id;
-    b.innerHTML = "&#9654;&#xFE0E; Open TikTok portrait window"; b.style.cssText = JUICY; b.onclick = open; return b;
+  window.WWDual = { attach };
+  function start() {
+    if (window.WWStage) return WWStage.attach("dual", mount);
+    const sc = document.createElement("script"); sc.src = "/assets/ww-stage.js"; sc.onload = () => WWStage.attach("dual", mount); document.head.appendChild(sc);
   }
-  function button() {
-    // Corpse Crafter: inside the settings drawer (H), above the Stream buttons.
-    const place = () => {
-      if (document.getElementById("dTikTok")) return true;
-      const full = document.getElementById("dFull"); if (!full) return false;
-      const grid = full.closest(".grid") || full;
-      grid.before(makeBtn("dTikTok")); return true;
-    };
-    if (place()) return;
-    let n = 0;
-    const iv = setInterval(() => {
-      if (place()) return clearInterval(iv);
-      if (++n > 10) {                       // pages without that drawer (ZombieRats): a corner button, Alt+B hides it
-        clearInterval(iv);
-        const f = makeBtn("ww-dual-btn");
-        f.style.cssText += ";position:fixed;left:12px;bottom:12px;width:auto;z-index:2147483000;opacity:.85";
-        document.body.append(f);
-        addEventListener("keydown", e => { if (e.key === "b" && e.altKey) f.hidden = !f.hidden; });
-      }
-    }, 300);
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", button); else button();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();

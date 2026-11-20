@@ -22,5 +22,9 @@
  [
   "const l=rn(o);if(o.button===0&&ro(l,o.shiftKey))return;const a=sn();if(o.button===0&&l.x>a.x&&l.x<a.x+a.w&&l.y>a.y&&l.y<a.y+a.h){hn();return}if(l.y>s.VH-fe-6&&o.button===0){const d=Math.floor((l.x-8)/((s.VW-16)/s.builds.length));s.builds[d]&&rt(s.builds[d].id);return}",
   "const l=rn(o),W=X&&window.CC_WIDE,L=W?{x:l.x-W.x,y:l.y}:l,Vs=s.VW;let hh=!1;W&&(s.VW=W.w);try{if(o.button===0&&ro(L,o.shiftKey))hh=!0;else{const a=sn();if(o.button===0&&L.x>a.x&&L.x<a.x+a.w&&L.y>a.y&&L.y<a.y+a.h)hn(),hh=!0;else if(L.y>s.VH-fe-6&&o.button===0&&L.x>=0&&L.x<=s.VW){const d=Math.floor((L.x-8)/((s.VW-16)/s.builds.length));s.builds[d]&&rt(s.builds[d].id),hh=!0}}}finally{s.VW=Vs}if(hh)return;"
+ ],
+ [
+  "n.render(o,l),t.setTransform(C,0,0,C,0,0),t.clearRect(0,0,s.VW,s.VH);",
+  "n.render(o,l),X&&window.CC_WIDE&&(window.CC_PX=B(r.x,r.y,0).x/s.VW),t.setTransform(C,0,0,C,0,0),t.clearRect(0,0,s.VW,s.VH);"
  ]
 ]

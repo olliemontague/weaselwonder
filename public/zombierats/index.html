@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><script src="/assets/ww-session.js"></script><script src="/assets/ww-cambg.js"></script>
+<head><script src="/assets/ww-session.js"></script><script src="/assets/ww-cambg.js"></script><script src="/assets/ww-stage.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>ZombieRats v1.3 · stream</title>
@@ -3607,9 +3607,9 @@ if (ZRS.saved.twCh && !ZRS.twCh) ZRS.twCh = ZRS.saved.twCh;
 }
 // ---------- portrait window (TikTok): full-height game, small cards top left, camera card bottom right ----------
 const ZRP = {W:1080, H:1920};
-function zrPortraitOpen(){
-  if (ZRS.portrait && !ZRS.portrait.win.closed){ ZRS.portrait.win.focus(); return; }
-  const win = window.open('', 'zrPortrait', 'popup,width=540,height=960'); if (!win){ toast('Allow pop-ups to open the portrait window'); return; }
+function zrPortraitOpen(into){   // into: the frame in the session's TikTok portrait window (opened from /streamer)
+  if (!into) return;
+  const win = into;
   const d = win.document; d.open(); d.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>ZombieRats · TikTok portrait</title><style>
   html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,Segoe UI,sans-serif;color:#f3ead8}
   #stage{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:0 0;background:#0e0d0b;overflow:hidden}
@@ -3647,7 +3647,6 @@ function zrPortraitOpen(){
   win.addEventListener('resize', fit); fit(); setTimeout(fit, 300);
   win.addEventListener('keydown', e => { if (e.code === 'KeyG') ZRS.guides = !ZRS.guides; });
   ZRS.portrait = {win, d, r2, fx, cam, el:id => d.getElementById(id), lastT:0};
-  toast('Portrait window open: drag it to your second screen and capture it for TikTok portrait');
 }
 function zrPortraitRender(){
   zrChatDraw();
@@ -3710,7 +3709,7 @@ function zrStreamApply(){
 }
 // ---------- host panel (H): never capture it ----------
 // End game (stream session, r22): closes the portrait window and chat, the tab shows "Game ended", /streamer unlocks the next game
-function zrEndTidy(){ try { if (ZRS.portrait && ZRS.portrait.win && !ZRS.portrait.win.closed) ZRS.portrait.win.close(); } catch (e) {} return new Promise(r => setTimeout(r, 300)); }
+function zrEndTidy(){ try { if (window.WWStage) WWStage.release(); ZRS.portrait = null; } catch (e) {} return new Promise(r => setTimeout(r, 300)); }
 function zrEndGame(){ if (!confirm('End ZombieRats? Chat closes and you pick the next game on /streamer.')) return;
   if (window.WWSession) WWSession.end(); else zrEndTidy().then(() => location.replace('/streamer/ended.html?game=ZombieRats')); }
 if (window.WWSession && /(^|\.)weaselwonder\.com$/.test(location.hostname)) WWSession.game({ slug: 'zombierats', title: 'ZombieRats', onEnd: zrEndTidy });
@@ -3718,7 +3717,7 @@ function zrHostDraw(){ const E = ZRS.els; if (!E.host) return;
   const b = (k, t, primary) => `<button data-k="${k}" style="font:800 14px system-ui;padding:8px 12px;border-radius:10px;border:2px solid ${primary ? '#000' : '#3a3025'};background:${primary ? '#e8c37a' : '#2a221a'};color:${primary ? '#1b140c' : '#f3ead8'};cursor:pointer">${t}</button>`;
   const sel = (k, opts, v) => `<select data-k="${k}" style="font:700 14px system-ui;background:#2a221a;color:#f3ead8;border:2px solid #3a3025;border-radius:8px;padding:5px">${opts.map(o => `<option ${String(o) === String(v) ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
   E.host.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#e8c37a;letter-spacing:.08em">HOST PANEL · not for capture (H hides)</b>${b('close', '✕')}</div>
-   <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${b('portrait', '📱 Open portrait window (O)', true)}${b('pause', '❚❚ Pause (P)')}${b('restart', '↺ Restart')}${b('clean', ZRS.clean ? '🎥 Clean: ON' : '🎥 Clean: off')}${b('guides', ZRS.guides ? '▦ Guides: ON (G)' : '▦ Guides: off (G)')}${b('camf', ZRS.camFrame ? '📷 Camera frame: ON (V)' : '📷 Camera frame: off (V)')}<button data-k="endgame" style="font:800 14px system-ui;padding:8px 12px;border-radius:10px;border:2px solid #000;background:#a8322a;color:#fff;cursor:pointer">⏹ End game</button></div>
+   <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">${b('pause', '❚❚ Pause (P)')}${b('restart', '↺ Restart')}${b('clean', ZRS.clean ? '🎥 Clean: ON' : '🎥 Clean: off')}${b('guides', ZRS.guides ? '▦ Guides: ON (G)' : '▦ Guides: off (G)')}${b('camf', ZRS.camFrame ? '📷 Camera frame: ON (V)' : '📷 Camera frame: off (V)')}<button data-k="endgame" style="font:800 14px system-ui;padding:8px 12px;border-radius:10px;border:2px solid #000;background:#a8322a;color:#fff;cursor:pointer">⏹ End game</button></div>
    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center">
    <span>Camera background</span><span data-cambg></span>
     <span>Simulated chat</span>${ZRS.live ? '<i style="opacity:.75">off (never on weaselwonder.com)</i>' : sel('chat', ['off', 'quiet', 'typical', 'busy'], ZR.cfg.chat)}
@@ -3728,12 +3727,12 @@ function zrHostDraw(){ const E = ZRS.els; if (!E.host) return;
    <span>TikTok (tik.tools)</span><span>${b('tt', 'Connect')} <i style="color:#b9ad97">${ZRS.ttStatus || (ZRS.saved.ttKey ? 'uses @' + String(ZRS.saved.ttUser || '').replace(/^@/, '') + ' from /streamer' : 'set up on weaselwonder.com/streamer')}</i></span>
    <span>TikTok (TikFinity)</span><span>${b('tf', 'Connect')} <i style="color:#b9ad97">${ZRS.tfStatus || 'TikFinity app must be running on this PC'}</i></span>
    <span>Test events</span><span>${b('follow', '💛 Follow')} ${b('rose', '🌹 Rose')} ${b('say', '💬 Comment (Enter)')}</span></div>
-   <div style="color:#b9ad97;font-size:12px;margin-top:8px">Capture this window (1920×1080) for landscape and the portrait window for TikTok portrait. Add ?clean to the address to start with host controls hidden.</div>`;
+   <div style="color:#b9ad97;font-size:12px;margin-top:8px">Capture this window (1920×1080) for Twitch. TikTok portrait: ${window.WWStage && WWStage.connected() ? '✅ showing in the portrait window' : 'open the portrait window from /streamer'}. Add ?clean to the address to start with host controls hidden.</div>`;
   { const cb = E.host.querySelector('[data-cambg]'); if (cb && window.WWCamBg){ const sel = WWCamBg.select({game:'zombierats'}); sel.style.cssText = 'font:600 13px system-ui;padding:4px 6px;border-radius:8px'; cb.appendChild(sel); } }
   E.host.querySelectorAll('[data-k]').forEach(el => { const k = el.dataset.k;
     if (el.tagName === 'SELECT') el.onchange = () => { if (k === 'chat') ZR.cfg.chat = el.value; if (k === 'hunters') ZR.cfg.hunters = +el.value; if (k === 'delay') ZR.cfg.delay = +el.value; zrHostDraw(); };
     else if (el.tagName === 'INPUT') { el.onkeydown = e => e.stopPropagation(); el.oninput = () => ZRS.twCh = el.value; }
-    else el.onclick = e => { e.stopPropagation(); if (k === 'close') zrHostToggle(false); if (k === 'portrait') zrPortraitOpen(); if (k === 'pause') togglePause(); if (k === 'restart') startStage(tut.stage); if (k === 'endgame') zrEndGame();
+    else el.onclick = e => { e.stopPropagation(); if (k === 'close') zrHostToggle(false); if (k === 'pause') togglePause(); if (k === 'restart') startStage(tut.stage); if (k === 'endgame') zrEndGame();
       if (k === 'clean'){ ZRS.clean = !ZRS.clean; zrStreamApply(); } if (k === 'guides'){ ZRS.guides = !ZRS.guides; zrStreamApply(); } if (k === 'camf'){ ZRS.camFrame = !ZRS.camFrame; zrStreamApply(); }
       if (k === 'tw') zrTwitch(ZRS.twCh || 'weaselwonder'); if (k === 'tf') zrTikfinity(); if (k === 'tt') zrTiktools();
       if (k === 'follow') zrFollow('test_follower'); if (k === 'rose') zrGift('test_gifter', 1, 'x', 'a Rose'); if (k === 'say' && ZR.els.chat){ ZR.els.chat.style.display = 'block'; ZR.els.chat.focus(); }
@@ -3742,12 +3741,13 @@ function zrHostToggle(on){ const E = ZRS.els; if (!E.host){ E.host = document.cr
     E.host.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;width:560px;background:#1d1813f2;border:3px solid #e8c37a;border-radius:18px;padding:14px 16px;color:#f3ead8;font:600 14px system-ui;box-shadow:0 20px 60px #000c'; }
   E.host.style.display = on ? 'block' : 'none'; if (on) zrHostDraw(); }
 addEventListener('keydown', e => { if (!ZR.on || !started || document.activeElement && document.activeElement.tagName === 'INPUT') return;
-  if (e.code === 'KeyO') zrPortraitOpen();
-  else if (e.code === 'KeyH' && !ZR.burrow) zrHostToggle(!(ZRS.els.host && ZRS.els.host.style.display === 'block'));
+  if (e.code === 'KeyH' && !ZR.burrow) zrHostToggle(!(ZRS.els.host && ZRS.els.host.style.display === 'block'));
   else if (e.code === 'KeyG'){ ZRS.guides = !ZRS.guides; zrStreamApply(); }
   else if (e.code === 'KeyV'){ ZRS.camFrame = !ZRS.camFrame; zrStreamApply(); } });
 // connect any chat sources asked for in the address once the game starts
 ZRS.boot = () => { zrStreamApply(); if (ZRS.booted) return; ZRS.booted = true; if (ZRS.q.get('twitch')){ ZRS.twCh = ZRS.q.get('twitch'); zrTwitch(ZRS.twCh); } if (ZRS.q.has('tikfinity')) zrTikfinity(); if (ZRS.q.has('tiktools')) zrTiktools(); };
+// TikTok portrait: draw into the session's portrait window whenever /streamer has one open (reconnects by itself)
+if (window.WWStage) WWStage.attach('zombierats', api => { const c = api.claim('zombierats'); ZRS.portrait = null; zrPortraitOpen(c.win); return c.token; });
 window.ZRS = ZRS; Object.assign(window.ZRF, {zrPortraitOpen, zrPortraitRender, zrFollow, zrGift, zrHostToggle});
 
 const tut = {stage:0, step:0, aimed:0, kills:0, picks:0, deposits:0, finished:false, moved:0, cutDone:false};

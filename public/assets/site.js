@@ -213,6 +213,9 @@
               <div class="acts">${g.stream && g.stream.url
                 ? `<small class="srun" hidden></small><a class="btn live" data-go="${g.slug}" href="${esc(href(g.stream.url))}" target="ww_game">Go live and open</a><button type="button" class="btn ghost" data-end="${g.slug}" hidden>End game</button><span class="btn soon" data-wait hidden aria-disabled="true"></span>`
                 : `<span class="btn soon" aria-disabled="true">Go live <em>Soon</em></span>`}</div></div>`).join("")}</div>
+          <div class="chatset" id="ttstage"><h2 class="t" style="font-size:24px">TikTok portrait window</h2>
+            <p class="sub">Open it once at the start of the session and capture it in TikTok LIVE Studio. Every game you launch from here shows its portrait view in it, with a "Weasel is changing game" screen in between. Closed it by mistake? Press the button again and the running game reconnects.</p>
+            <div class="row"><button type="button" class="btn" id="ttopen">Open TikTok portrait window</button><span id="ttstat" class="sub" style="margin:0">Not open</span></div></div>
           <div class="chatset"><h2 class="t" style="font-size:24px">Chat connections</h2>
             <p class="sub">Used by every game's streamer view (ZombieRats and Corpse Crafter). Saved in this browser only. Reload the game tab after saving.</p>
             <form id="chatform" class="cform">
@@ -240,6 +243,21 @@
           setLive(slug);
         }));
         m.querySelectorAll("[data-end]").forEach(b => b.onclick = () => endGame(b.dataset.end, b));
+        // TikTok portrait window: one per session, opened here; games find it through window.opener.wwStage
+        const ttb = document.getElementById("ttopen"), tts = document.getElementById("ttstat");
+        if (ttb) {
+          const ttDraw = () => { const w = window.wwStage, open = !!(w && !w.closed);
+            let slug = null; try { slug = open && w.wwStageApi ? w.wwStageApi.slug() : null; } catch (e) {}
+            tts.textContent = !open ? "Not open" : slug ? `Open · showing ${slug}` : "Open · hold screen";
+            ttb.textContent = open ? "Bring portrait window forward" : "Open TikTok portrait window"; };
+          ttb.onclick = () => {
+            if (window.wwStage && !window.wwStage.closed) { window.wwStage.focus(); return; }
+            const w = window.open("/streamer/portrait.html", "ww_portrait", "popup,width=540,height=960");
+            if (!w) { tts.textContent = "Pop-up blocked: allow pop-ups for weaselwonder.com"; return; }
+            window.wwStage = w; ttDraw();
+          };
+          clearInterval(window.__ttIv); window.__ttIv = setInterval(ttDraw, 1000); ttDraw();
+        }
         // camera background picker (shared with every game's settings through /assets/ww-cambg.js)
         const cbp = document.getElementById("cambgpick");
         if (cbp && window.WWCamBg) {

@@ -5,30 +5,58 @@
 <meta name="robots" content="noindex">
 <title>TikTok portrait · weaselwonder</title>
 <style>
-  html,body{margin:0;height:100%;background:#000;overflow:hidden;font:600 15px system-ui,sans-serif;color:#cfd8d8}
-  #stage{position:fixed;inset:0;overflow:hidden}
-  #stage video{position:absolute;object-fit:fill;pointer-events:none}
-  #msg{position:fixed;inset:auto 16px 16px 16px;text-align:center;text-shadow:0 1px 4px #000}
-  #hint{position:fixed;top:8px;right:10px;font-size:12px;opacity:.0;transition:opacity .3s}
-  body:hover #hint{opacity:.7}
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,Segoe UI,sans-serif;color:#f3ead8}
+  #f{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#000}
+  #hold{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(120% 80% at 50% 35%,#2a2118,#120e0a 60%,#070504)}
+  #hold .box{position:absolute;left:0;right:0;top:0;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.2vh;padding:0 8vw;text-align:center;box-sizing:border-box;padding-bottom:28vh}
+  #hold .logo{font:900 min(7.4vh,10vw)/1 system-ui;letter-spacing:.04em;color:#e8c37a;text-shadow:0 .6vh 0 #000}
+  #hold .t{font:900 min(4.4vh,7vw)/1.15 system-ui}
+  #hold .s{font:700 2.4vh/1.3 system-ui;color:#c9bca3}
+  #hold .url{margin-top:1vh;padding:1.2vh 3vh;border:.35vh solid #e8c37a;border-radius:1.6vh;font:900 2.8vh system-ui;background:rgba(29,24,19,.85)}
+  #hold .dots i{display:inline-block;width:1.4vh;height:1.4vh;margin:0 .6vh;border-radius:50%;background:#e8c37a;animation:b 1.2s infinite ease-in-out}
+  #hold .dots i:nth-child(2){animation-delay:.2s} #hold .dots i:nth-child(3){animation-delay:.4s}
+  @keyframes b{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+  #hint{position:fixed;top:8px;right:10px;font:600 12px system-ui;opacity:0;transition:opacity .3s;z-index:5;color:#cfd8d8;text-shadow:0 1px 3px #000}
+  body:hover #hint{opacity:.75}
 </style>
 </head>
 <body>
-<div id="stage"></div>
-<div id="msg">Connecting to the game window...</div>
-<div id="hint">R reconnect · capture this window in TikTok LIVE Studio</div>
+<iframe id="f" title="game portrait" hidden></iframe>
+<div id="hold"><div class="box">
+  <div class="logo">WEASELWONDER</div>
+  <div class="t" id="holdT">Weasel is changing game</div>
+  <div class="s">The next game starts in a moment</div>
+  <div class="dots"><i></i><i></i><i></i></div>
+  <div class="url">Play with me · weaselwonder.com</div>
+</div></div>
+<div id="hint">TikTok portrait · capture this window in TikTok LIVE Studio · opened from /streamer</div>
 <script>
-  // Portrait pop-up for the dual stream. The main game window (its opener) streams its game canvases in here.
-  function connect() {
-    const m = document.getElementById("msg");
-    try {
-      if (!window.opener || window.opener.closed) { m.textContent = "Open this from the game window (TikTok window button or key T)."; return; }
-      if (!window.opener.WWDual) { m.textContent = "The game window has no dual-stream support yet. Reload it, then press R."; return; }
-      window.opener.WWDual.attach(window);
-    } catch (e) { m.textContent = "Could not reach the game window: " + e.message; }
+// The session's TikTok portrait window. Opened (and reopened) from /streamer, which keeps a reference to it
+// (window.wwStage). Each game launched from /streamer finds it through its opener and draws its portrait slice
+// into the frame here (see /assets/ww-stage.js). Between games it shows the hold screen.
+(function () {
+  let owner = null, seq = 0, lastPing = 0;
+  const holdEl = document.getElementById("hold");
+  function fresh() { const old = document.getElementById("f"), f = document.createElement("iframe"); f.id = "f"; f.title = "game portrait"; old.replaceWith(f); return f; }
+  function hold(on, text) {
+    holdEl.style.display = on ? "flex" : "none";
+    if (text) document.getElementById("holdT").textContent = text;
+    if (on) { const f = fresh(); f.hidden = true; }
   }
-  addEventListener("keydown", e => { if (e.key === "r" || e.key === "R") connect(); });
-  addEventListener("load", connect);
+  const api = {
+    claim(slug) { seq++; owner = { slug, token: seq }; lastPing = Date.now(); const f = fresh(); f.hidden = false; hold(false); return { token: seq, win: f.contentWindow, doc: f.contentDocument, frame: f }; },
+    load(slug, url) { const c = api.claim(slug); c.frame.src = url; return c; },
+    release(token) { if (owner && owner.token === token) { owner = null; hold(true, "Weasel is changing game"); } },
+    ping(token) { if (owner && owner.token === token) lastPing = Date.now(); },
+    owner() { return owner ? owner.token : null; },
+    slug() { return owner ? owner.slug : null; },
+  };
+  window.wwStageApi = api;
+  // a game tab that vanished without saying goodbye: back to the hold screen
+  setInterval(() => { if (owner && Date.now() - lastPing > 6000) { owner = null; hold(true, "Weasel is changing game"); } }, 1000);
+  try { const bc = new BroadcastChannel("ww-session"); bc.onmessage = e => { const m = e.data || {}; if ((m.t === "end" || m.t === "bye") && owner && (!m.game || m.game === owner.slug)) { owner = null; hold(true, "Weasel is changing game"); } }; } catch (e) {}
+  hold(true);
+})();
 </script>
 </body>
 </html>
