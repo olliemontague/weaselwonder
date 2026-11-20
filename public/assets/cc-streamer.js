@@ -81,8 +81,8 @@
 (function () {
   if (!location.pathname.startsWith("/corpsecrafter/weasel")) return;
   function go() {
-    const f = document.querySelector(".camframe"); if (!f || !window.WWCamBg) return;
-    WWCamBg.attach(f, { game: "corpse-crafter", radius: "10px" });
+    const v2 = document.getElementById("cc2cam"), f = v2 || document.querySelector(".camframe"); if (!f || !window.WWCamBg) return;
+    WWCamBg.attach(f, v2 ? { game: "corpse-crafter" } : { game: "corpse-crafter", radius: "10px" });
     const grid = document.getElementById("dFrame") && document.getElementById("dFrame").parentElement;
     if (grid && !document.getElementById("dCamBg")) {
       const w = document.createElement("label"); w.id = "dCamBg"; w.style.cssText = "grid-column:1/-1;display:flex;gap:8px;align-items:center;font-size:13px";
