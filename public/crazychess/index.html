@@ -1904,7 +1904,7 @@ if(document.body.className==='host'){
   link.on(m => {
     if (!m || m.t !== 'joined' || m.id !== myId) return;
     if (!m.ok) { me = null; $('plJoinCard').style.display = 'flex'; $('plErr').textContent = m.reason || 'Could not join'; return; }
-    me = { name: m.name, team: m.team }; $('plJoinCard').style.display = 'none'; $('plGame').style.display = 'flex'; fit();
+    me = { name: m.name, team: m.team }; $('plErr').textContent = ''; $('plJoinCard').style.display = 'none'; $('plGame').style.display = 'flex'; fit();
   });
   $('plHold').onclick = () => { if (!me) return; link.send({ t: 'move', id: myId, cmd: 'hold' }); pending = { hold: true }; pendingTurn = v ? v.turn : -1; sel = null; flash('Holding this turn'); };
   $('plLeave').onclick = () => { link.send({ t: 'leave', id: myId }); me = null; $('plGame').style.display = 'none'; $('plJoinCard').style.display = 'flex'; $('plErr').textContent = ''; };
