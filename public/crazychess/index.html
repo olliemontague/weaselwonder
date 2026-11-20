@@ -1465,7 +1465,19 @@ if(document.body.className==='host'){
       const p = pieceOf(pl);
       feed(name, text, src); feed('⚓', name + ' joined ' + (pl.team === 'A' ? 'Red' : 'Blue') + (p ? ' as a ' + E.NAME[p.t] : ', waiting for a piece'), 'sys');
       if (JOIN.test(text)) return;
-    } else feed(name, text, src, pl.col);
+    } else {
+      feed(name, text, src, pl.col);
+      // typing the other side's colour switches team: their old ship goes to a bot, they crew a ship on the new side
+      const want = /^\W*blue\b/i.test(text) ? 'B' : /^\W*red\b/i.test(text) ? 'A' : null;
+      if (want && want !== pl.team && g && (g.turn || 0) >= (pl.switchAt || 0)) {
+        const old = pieceOf(pl); if (old) old.owner = null;
+        const n = [...players.values()].filter(p => p.team === want).length;
+        pl.team = want; pl.col = PCOL[want][n % 8]; pl.cmd = null; pl.idle = 0; pl.afk = false; pl.switchAt = (g.turn || 0) + 2;
+        const p = seat(pl);
+        feed('⚓', name + ' switched to ' + (want === 'A' ? 'Red' : 'Blue') + (p ? ' as a ' + E.NAME[p.t] : ', waiting for a ship'), 'sys');
+        return;
+      }
+    }
     if (pl.afk) { pl.afk = false; pl.idle = 0; feed('⚓', name + ' is back in control', 'sys'); }
     const cmd = E.parseCmd(text); if (cmd) pl.cmd = cmd;
   }
@@ -1511,23 +1523,23 @@ if(document.body.className==='host'){
   const conn = { twitch: 'off', tiktok: 'off' };
   function streamSettings() { try { return JSON.parse(localStorage.getItem('zb_stream_settings') || '{}'); } catch (e) { return {}; } }
   function connectTwitch(ch) {
-    if (!ch) return; ch = ch.replace(/^#/, '').toLowerCase();
+    if (!ch) return; ch = ch.replace(/^#/, '').toLowerCase(); conn.twWant = ch; if (conn.twWs) { try { conn.twWs.onclose = null; conn.twWs.close(); } catch (e) {} }
     try {
-      const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); conn.twitch = 'connecting';
+      const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); conn.twWs = ws; conn.twitch = 'connecting';
       ws.onopen = () => { ws.send('CAP REQ :twitch.tv/tags'); ws.send('PASS SCHMOOPIIE'); ws.send('NICK justinfan' + Math.floor(1e4 + rand() * 8e4)); ws.send('JOIN #' + ch); conn.twitch = 'live #' + ch; hostUI(); };
       ws.onmessage = e => String(e.data).split('\r\n').forEach(line => {
         if (line.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
         const m = line.match(/^(?:@([^ ]+) )?:([^!]+)![^ ]+ PRIVMSG #[^ ]+ :(.*)$/); if (!m) return;
         const dn = (m[1] || '').match(/display-name=([^;]*)/); onChat('twitch', (dn && dn[1]) || m[2], m[3]);
       });
-      ws.onclose = () => { conn.twitch = 'closed'; hostUI(); };
+      ws.onclose = () => { conn.twitch = 'reconnecting'; hostUI(); if (conn.twWant === ch) setTimeout(() => { if (conn.twWant === ch) connectTwitch(ch); }, 3000); };
     } catch (e) { conn.twitch = 'error'; }
   }
   function connectTikTok(user, key, tikfinity) {
     let url = tikfinity ? 'ws://localhost:21213/' : (user && key ? 'wss://api.tik.tools?uniqueId=' + encodeURIComponent(user.replace(/^@/, '')) + '&apiKey=' + encodeURIComponent(key) : null);
-    if (!url) return;
+    if (!url) return; conn.ttWant = url; if (conn.ttWs) { try { conn.ttWs.onclose = null; conn.ttWs.close(); } catch (e) {} }
     try {
-      const ws = new WebSocket(url); conn.tiktok = 'connecting';
+      const ws = new WebSocket(url); conn.ttWs = ws; conn.tiktok = 'connecting';
       ws.onopen = () => { conn.tiktok = 'live' + (tikfinity ? ' (TikFinity)' : ' @' + user); hostUI(); };
       ws.onmessage = e => {
         let d; try { d = JSON.parse(e.data); } catch (er) { return; }
@@ -1537,7 +1549,7 @@ if(document.body.className==='host'){
         const u = data.user || data; const name = u.nickname || u.uniqueId || data.nickname || data.uniqueId; const text = data.comment || data.message || data.text;
         if (name && text) onChat('tiktok', name, text);
       };
-      ws.onclose = () => { conn.tiktok = 'closed'; hostUI(); };
+      ws.onclose = () => { conn.tiktok = 'reconnecting'; hostUI(); if (conn.ttWant === url) setTimeout(() => { if (conn.ttWant === url) connectTikTok(user, key, tikfinity); }, 10000); };
     } catch (e) { conn.tiktok = 'error'; }
   }
 
@@ -1718,8 +1730,12 @@ if(document.body.className==='host'){
   }
   addEventListener('resize', fitScene);
   let lastKids = 0, lastBC = 0, lastCtl = 0, fastUntil = 0, hudKey = '';
-  function frame(now) {
-    requestAnimationFrame(frame);
+  // Chrome pauses requestAnimationFrame when this window is covered or minimised, which froze the TikTok portrait.
+  // A worker timer (not throttled) keeps the game and the portrait feed running at about 20 fps when that happens.
+  let lastRaf = 0;
+  function frame(now) { requestAnimationFrame(frame); lastRaf = performance.now(); step(now); }
+  try { const hb = new Worker(URL.createObjectURL(new Blob(['setInterval(function(){postMessage(0)},50)'], { type: 'text/javascript' }))); hb.onmessage = () => { const t = performance.now(); if (t - lastRaf > 200) step(t); }; } catch (e) {}
+  function step(now) {
     if (!g) return;
     const v = view(now);
     const legal = sel != null ? E.legalMoves(g, g.pieces[sel]).map(m => Object.assign(m, { doomed: doomed(g.pieces[sel], m) })) : null;
@@ -1813,8 +1829,10 @@ if(document.body.className==='host'){
   window.CCHost = { get stage() { return stage; }, get open() { return open; }, control, get g() { return g; }, get phase() { return phase; }, get players() { return players; }, get rep() { return rep; }, OPT, onChat, resolveTurn: () => resolveTurn(performance.now()), view: () => view(performance.now()), openPortrait, openPlayer, kids };
   applyOpt(); fitScene();
   const s0 = performance.now(); newGame(s0); if (!CLEAN) toggleDrawer(true);
-  const ss = streamSettings(); if (Q.get('twitch') || ss.twCh && Q.has('connect')) connectTwitch(Q.get('twitch') || ss.twCh);
-  if (Q.has('tikfinity')) connectTikTok(null, null, true); else if (ss.ttUser && ss.ttKey && Q.has('connect')) connectTikTok(ss.ttUser, ss.ttKey);
+  // chat connects by itself from the Chat connections saved on /streamer (add ?nochat to skip), and reconnects if it drops
+  const ss = streamSettings(), auto = !Q.has('nochat');
+  if (Q.get('twitch') || auto) connectTwitch(Q.get('twitch') || ss.twCh || 'weaselwonder');
+  if (Q.has('tikfinity')) connectTikTok(null, null, true); else if (ss.ttUser && ss.ttKey && (auto || Q.has('connect'))) connectTikTok(ss.ttUser, ss.ttKey);
   requestAnimationFrame(frame);
   setTimeout(() => { const h = $('hHint'); if (h) h.classList.add('gone'); }, 8000);
 })();
