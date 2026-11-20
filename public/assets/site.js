@@ -13,7 +13,7 @@
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   // Paths that already exist on the live site open there from the prototype.
-  const LIVE_PATHS = ["/tutorial/", "/play/", "/stream/", "/corpsecrafter/"];
+  const LIVE_PATHS = ["/tutorial/", "/play/", "/zombierats/", "/corpsecrafter/"];
   function href(u) {
     if (!u) return null;
     if (u.startsWith("#") || /^https?:/.test(u)) return u;
@@ -27,7 +27,8 @@
   function mockGet() {
     const q = new URLSearchParams(location.search).get("live");
     if (q !== null) return q;
-    try { return sessionStorage.getItem("ww_live") || ""; } catch (e) { return window.__wwLive || ""; }
+    const def = window.WW_PREVIEW_DEFAULT || "";
+    try { const v = sessionStorage.getItem("ww_live"); return v === null ? def : v; } catch (e) { return window.__wwLive != null ? window.__wwLive : def; }
   }
   function mockSet(v) { try { sessionStorage.setItem("ww_live", v); } catch (e) { window.__wwLive = v; } }
   async function readLive() {
@@ -103,7 +104,7 @@
         <h1 class="logo">Play with<br>the stream</h1>
         <p class="lede" data-when="offline">Games you play from TikTok and Twitch chat, or right here in your browser. Weasel is offline, so try one solo and be ready for the next stream.</p>
         <p class="lede" data-when="live" hidden>Weasel is live right now. Jump into the game from your phone, or type in chat to play.</p>
-        <a class="featured" id="featured" href="#"></a>
+        <div class="featured" id="featured"></div>
         <div class="row" data-when="offline" style="margin-top:6px">
           <a class="btn big" href="#games">Pick a game</a>
           <a class="btn big discord" href="${L.discord}" target="_blank" rel="noopener">Join the Discord</a></div>
@@ -145,10 +146,11 @@
       hp.classList.toggle("on", !!g); hp.querySelector("span").textContent = g ? "Weasel is live" : "Weasel is offline";
       const f = document.getElementById("featured");
       if (g) {
-        f.href = page(g.slug);
-        f.innerHTML = `<div class="art" style="background-image:url(${art(g)})"><span class="pill on"><i></i>Live now</span></div>
-          <div class="info"><div class="kicker">Weasel is playing</div><h2>${esc(g.title)}</h2><p>${esc(g.tagline)} ${esc(g.join.note || "")}</p>
-          <span class="btn live big">Watch and join</span></div>`;
+        const j = g.join || {}, jh = href(j.url) || L.tiktok;
+        f.innerHTML = `<a class="art" href="${page(g.slug)}" style="background-image:url(${art(g)})"><span class="pill on"><i></i>Live now</span></a>
+          <div class="info"><div class="kicker">Weasel is playing</div><h2>${esc(g.title)}</h2><p>${esc(g.tagline)} ${esc(j.note || "")}</p>
+          <div class="row"><a class="btn live big" href="${esc(jh)}" ${/^https?:/.test(jh) ? 'target="_blank" rel="noopener"' : ""}>${esc(j.url ? j.label : "Watch and type in chat")}</a>
+          <a class="btn ghost" href="${page(g.slug)}">How to play</a></div></div>`;
       }
       document.querySelectorAll(".gcard").forEach(c => {
         const s = c.querySelector(".badge-slot"), gg = byslug(c.dataset.slug);
@@ -181,6 +183,8 @@
         <p class="lede">${esc(g.tagline)} ${esc(g.blurb)}</p>
         ${g.variants ? `<div class="variants">${g.variants.map(v => `<span class="badge">${esc(v)}</span>`).join("")}</div>` : ""}
         <div class="ctas">${cta}</div>
+        <div class="live-cta"><a class="btn live big" href="${esc(href(join.url) || L.tiktok)}" target="_blank" rel="noopener">${esc(join.url ? join.label : "Watch and type in chat")}</a>
+          <small>Weasel is live with ${esc(g.title)} right now. ${esc(join.note || "")}</small></div>
         <div class="meta">${statusBadge(g)}<span class="badge">Latest build ${esc(g.version)} · ${esc(g.versionDate)}</span></div>
         <div class="devnote">Prototype: buttons for pages not built yet show where they will go after the push.</div>
       </div></section>
@@ -202,15 +206,17 @@
           <div class="row"><span class="pill" id="sp"><i></i><span>Offline</span></span>
           <button class="btn ghost" id="go-off">Go offline</button>
           <a class="btn ghost" href="${PROTO ? "#" : "/api/stream-logout"}">Log out</a></div></div>
-          <p class="sub">"Go live" puts the game on the home page and lights up its page for viewers. "Launch" opens the game in streamer mode (OBS browser source, 1920x1080).</p>
+          <p class="sub">"Go live and open" puts the game on the home page for viewers and opens its streamer view in a new tab (use that tab as the OBS browser source, 1920x1080). Come back here and press "Go offline" when you finish.</p>
           <div class="slist">${G.map(g => `
             <div class="srow" data-slug="${g.slug}"><div class="img" style="background-image:url(${art(g)})"></div>
               <div><h3>${esc(g.title)}</h3><small>${esc(g.version)} · ${esc(g.versionDate)} · ${g.stream && g.stream.url ? esc(g.stream.url) : "no stream mode yet"}</small></div>
-              <div class="acts"><button class="btn live" data-go="${g.slug}">Go live</button>
-              ${g.stream && g.stream.url ? `<a class="btn" href="${esc(href(g.stream.url))}" target="_blank" rel="noopener">Launch</a>` : `<span class="btn soon" aria-disabled="true">Launch <em>Soon</em></span>`}</div></div>`).join("")}</div>
+              <div class="acts">${g.stream && g.stream.url
+                ? `<a class="btn live" data-go="${g.slug}" href="${esc(href(g.stream.url))}" target="_blank" rel="noopener">Go live and open</a>`
+                : `<span class="btn soon" aria-disabled="true">Go live <em>Soon</em></span>`}</div></div>`).join("")}</div>
           <div class="devnote">Prototype: Go live here flips the mock state, so open the home page to see the live view.</div>
         </div></section>`;
-        m.querySelectorAll("[data-go]").forEach(b => b.onclick = () => setLive(b.dataset.go));
+        // Opens the game's host view in a new tab (so it is never popup-blocked) and marks the site live at the same moment.
+        m.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => setLive(b.dataset.go)));
         document.getElementById("go-off").onclick = () => setLive("");
         renderers.streamerLive(live.live && byslug(live.game));
       };
@@ -224,7 +230,7 @@
     streamerLive(g) {
       document.querySelectorAll(".srow").forEach(r => {
         const on = g && r.dataset.slug === g.slug; r.classList.toggle("active", !!on);
-        const b = r.querySelector("[data-go]"); if (b) { b.textContent = on ? "Live now" : "Go live"; b.classList.toggle("off", !!on); }
+        const b = r.querySelector("[data-go]"); if (b) b.textContent = on ? "Live now: reopen" : "Go live and open";
       });
       const sp = document.getElementById("sp");
       if (sp) { sp.classList.toggle("on", !!g); sp.querySelector("span").textContent = g ? "Live: " + g.title : "Offline"; }
@@ -234,7 +240,7 @@
   async function setLive(slug) {
     if (PROTO) { mockSet(slug); }
     else {
-      await fetch("/api/live", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ game: slug || null }) });
+      await fetch("/api/live", { method: "POST", keepalive: true, headers: { "content-type": "application/json" }, body: JSON.stringify({ game: slug || null }) }).catch(() => {});
     }
     live = await readLive(); applyLive(); devbar();
   }
@@ -245,11 +251,15 @@
     let d = document.getElementById("devbar");
     if (!d) { d = document.createElement("div"); d.id = "devbar"; d.className = "devbar"; B.append(d); }
     const cur = live.live ? live.game : "";
-    d.innerHTML = `<span>Preview:</span><button data-s="" class="${cur ? "" : "on"}">Offline</button>` +
-      G.map(g => `<button data-s="${g.slug}" class="${cur === g.slug ? "on" : ""}">Live: ${esc(g.title)}</button>`).join("") +
-      `<button data-nav="streamer">/streamer</button><button data-nav="notes">Plan and ideas</button>`;
-    d.querySelectorAll("[data-s]").forEach(b => b.onclick = () => setLive(b.dataset.s));
-    d.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => location.href = ROOT + (b.dataset.nav === "notes" ? "notes.html" : "streamer/index.html"));
+    d.innerHTML = `<span>Preview:</span><select id="dv-live" aria-label="Preview live state">
+        <option value="">Weasel is offline</option>${G.map(g => `<option value="${g.slug}" ${cur === g.slug ? "selected" : ""}>Live with ${esc(g.title)}</option>`).join("")}</select>
+      <button data-nav="home">Home</button><button data-nav="game">Live game page</button><button data-nav="streamer">/streamer</button>`;
+    d.querySelector("#dv-live").value = cur;
+    d.querySelector("#dv-live").onchange = e => setLive(e.target.value);
+    d.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => {
+      const n = b.dataset.nav, slug = live.live ? live.game : G[0].slug;
+      location.href = ROOT + (n === "home" ? "index.html" : n === "game" ? "games/" + slug + "/index.html" : n === "notes" ? "notes.html" : "streamer/index.html");
+    });
   }
 
   document.addEventListener("click", e => {

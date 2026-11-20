@@ -217,3 +217,10 @@ body.live-here .gtop{top:114px}
 .btn.soon{opacity:.55;cursor:not-allowed;filter:grayscale(.4)}
 .btn.soon:active{transform:none}
 .btn.soon em{font-style:normal;font:800 10px/1 Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase;background:#1b1408;color:var(--gold2);padding:4px 6px;border-radius:6px;margin-left:4px}
+.devbar select{font:700 13px Inter,sans-serif;padding:7px 10px;border-radius:8px;border:1px solid var(--red);background:#2a0f0b;color:#fff}
+.featured .art{display:block}
+
+.live-cta{display:none;align-items:center;gap:14px;flex-wrap:wrap;margin-top:20px}
+.live-cta small{color:var(--bone);max-width:40ch}
+body.live-here .live-cta{display:flex}
+body.live-here .ghero .ctas,body.live-here .ghero .devnote{display:none}

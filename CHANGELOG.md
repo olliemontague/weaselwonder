@@ -73,3 +73,11 @@
 - /streamer/: password protected (same login as /stream). Pick the game, Go live, Launch.
 - /api/live: GET returns {live, game}; POST (stream login only) sets or clears it, expires after 12 hours. Pages check it every 20 s.
 - Game list lives in public/assets/games.js. Unchanged: /tutorial/, /play/, /stream/, /corpsecrafter/.
+
+## r19 · 2026-11-20 (streamer flow and dual stream)
+- /streamer: one button per game, "Go live and open": marks the site live and opens the host view in a new tab. Go offline on the same page.
+- Dual stream: host views get a "TikTok window (T)" button that opens /streamer/portrait.html, a 9:16 pop-up showing the live game canvases (canvas.captureStream). Corpse Crafter host and ZombieRats /stream. Spec: project doc claude/dual-stream-specs.md.
+- Corpse Crafter host (/corpsecrafter/weasel) signs in with the /streamer login (new /api/stream-check); the old host password still works. The Corpse Crafter socket now sets the host flag from the login cookie only, so a faked header can no longer claim host.
+- Home page live card: direct Join button plus How to play. Game pages hide the offline buttons and show Join while weasel is live with that game.
+- /stream is now /zombierats (old /stream links redirect). Every streamer view needs the streamer login: /streamer/, /zombierats/, /corpsecrafter/weasel and the TikTok pop-up. Logging in returns you to the page you asked for.
+- ZombieRats pages (/zombierats, /play, /tutorial) renamed from Zombuild to ZombieRats.

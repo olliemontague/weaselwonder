@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<title>Zombuild · stream</title>
+<title>ZombieRats · stream</title>
 <meta name="viewport" content="width=1920">
 <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet">
 <style>
@@ -76,7 +76,7 @@
 </style></head><body>
 <div id="stage">
   <div class="col" id="left">
-    <div class="card"><h1>ZOMBUILD</h1><div class="tag">Live with weaselwonder · a town against the zombie rats</div></div>
+    <div class="card"><h1>ZOMBIERATS</h1><div class="tag">Live with weaselwonder · a town against the zombie rats</div></div>
     <div class="play">PLAY WITH ME<b>www.weaselwonder.com</b></div>
     <div class="card how">
       <div><i>join</i>type it in chat to become a citizen mouse</div>
@@ -105,7 +105,7 @@
     <div class="card" id="chat"></div>
   </div>
 </div>
-<div id="startbox"><div class="card"><h1>ZOMBUILD</h1><p>Stream mode. Connect chat in Settings, then start.</p>
+<div id="startbox"><div class="card"><h1>ZOMBIERATS</h1><p>Stream mode. Connect chat in Settings, then start.</p>
   <button id="startGo">▶ Start the town</button><button id="startSet">⚙ Settings</button><div class="st" id="startSt">Loading the game…</div></div></div>
 <div id="hiddenWarn" style="display:none;position:fixed;left:0;right:0;top:0;z-index:40;background:#a8322a;color:#fff;font:800 18px system-ui;padding:8px;text-align:center">⚠ This tab was in the background, so the game slowed down for players. Keep the stream page in its own window (or in OBS) while live.</div>
 <button id="setbtn">⚙ weaselwonder settings (S)</button>
@@ -277,4 +277,5 @@ $('startGo').onclick = () => { if (!ready){ $('startSt').textContent = 'Still lo
   line('The town is open. Type <b>join</b> to become a citizen!', 'sys');
   if (S.twCh) twConnect(); if (S.ttUser && S.ttKey){ S.ttAuto = true; ttConnect(); } };
 </script>
+<script src="/assets/dual-stream.js" defer></script>
 </body></html>

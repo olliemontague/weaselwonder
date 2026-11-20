@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Zombuild V02a</title>
+<title>ZombieRats V02a</title>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#141210;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#f3ead8;touch-action:none;user-select:none;-webkit-user-select:none}
   canvas{display:block}
@@ -104,7 +104,7 @@
 <div class="stick" id="stickL"><i></i></div>
 <div class="stick" id="stickR"><i></i></div>
 <div id="overlay">
-  <h1>ZOMBUILD</h1>
+  <h1>ZOMBIERATS</h1>
   <p><b>Tutorial.</b> Learn the town's jobs one stage at a time. Stage 1: collecting bodies.</p>
   <p id="ctrl"></p>
   <button id="go" disabled>Loading…</button>
@@ -3001,7 +3001,7 @@ const STAGES = [
       showSite(END_ZONE, ['END ZONE', 'build here to win']);
       W.root.position.set(-0.8, 0, OUT_SITE.z + 0.6); W.face = Math.PI; W.aimWant = Math.PI; W.aimDir.set(0, 0, -1);
     },
-    end:{title:'You won the game!', body:'You built an outpost in the end zone, right by the woods where the rats are bred.<br><br>Everything you learned got you here: collecting bodies, carrying together, building wire, sandbags, traps and turrets, breeding big rats, rescuing the fallen, and pushing outposts forward along their belts.<br><br><b>That is Zombuild.</b>'},
+    end:{title:'You won the game!', body:'You built an outpost in the end zone, right by the woods where the rats are bred.<br><br>Everything you learned got you here: collecting bodies, carrying together, building wire, sandbags, traps and turrets, breeding big rats, rescuing the fallen, and pushing outposts forward along their belts.<br><br><b>That is ZombieRats.</b>'},
   },
   { name:'Free play', armed:true, respawns:true, boxSpeed:3, towerReload:()=>FP.d.reload, free:true,
     help:[

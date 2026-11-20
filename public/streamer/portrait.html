@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>TikTok portrait · weaselwonder</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font:600 15px system-ui,sans-serif;color:#cfd8d8}
+  #stage{position:fixed;inset:0;overflow:hidden}
+  #stage video{position:absolute;object-fit:fill;pointer-events:none}
+  #msg{position:fixed;inset:auto 16px 16px 16px;text-align:center;text-shadow:0 1px 4px #000}
+  #hint{position:fixed;top:8px;right:10px;font-size:12px;opacity:.0;transition:opacity .3s}
+  body:hover #hint{opacity:.7}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="msg">Connecting to the game window...</div>
+<div id="hint">R reconnect · capture this window in TikTok LIVE Studio</div>
+<script>
+  // Portrait pop-up for the dual stream. The main game window (its opener) streams its game canvases in here.
+  function connect() {
+    const m = document.getElementById("msg");
+    try {
+      if (!window.opener || window.opener.closed) { m.textContent = "Open this from the game window (TikTok window button or key T)."; return; }
+      if (!window.opener.WWDual) { m.textContent = "The game window has no dual-stream support yet. Reload it, then press R."; return; }
+      window.opener.WWDual.attach(window);
+    } catch (e) { m.textContent = "Could not reach the game window: " + e.message; }
+  }
+  addEventListener("keydown", e => { if (e.key === "r" || e.key === "R") connect(); });
+  addEventListener("load", connect);
+</script>
+</body>
+</html>

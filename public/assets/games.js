@@ -17,7 +17,7 @@ window.WW_GAMES = [
       { label: "Free play (Easy, Medium, Hard)", url: "/tutorial/?stage=14", note: "Stage 14 of the tutorial, single player with bot mice" }
     ],
     join: { label: "Join weasel's town", url: "/play/", note: "Up to 10 mice, then ghost rats" },
-    stream: { label: "ZombieRats stream mode", url: "/stream/" },
+    stream: { label: "ZombieRats streamer view", url: "/zombierats/" },
     how: [
       ["Collect", "Every rat that dies leaves a body. Carry bodies to the corpse pile: they are the town's only resource."],
       ["Build", "The factory turns bodies into crossbows, barbed wire, sandbags, traps and turrets. Chat votes on what it makes next."],
