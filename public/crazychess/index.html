@@ -1511,6 +1511,9 @@ if(document.body.className==='host'){
   const conn = { twitch: 'off', tiktok: 'off' };
   function streamSettings() { try { return JSON.parse(localStorage.getItem('zb_stream_settings') || '{}'); } catch (e) { return {}; } }
   let twWs = null;
+  // each chat message carries a unique id (Twitch tag id=, TikTok msgId): drop repeats, so doubled links never double chat
+  const seenIds = new Set(), seenOrder = [];
+  function seenMsg(id) { if (!id) return false; if (seenIds.has(id)) return true; seenIds.add(id); seenOrder.push(id); if (seenOrder.length > 500) seenIds.delete(seenOrder.shift()); return false; }
   function connectTwitch(ch) {
     if (!ch) return; ch = ch.replace(/^#/, '').toLowerCase();
     try {
@@ -1520,7 +1523,7 @@ if(document.body.className==='host'){
       ws.onmessage = e => String(e.data).split('\r\n').forEach(line => {
         if (line.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
         const m = line.match(/^(?:@([^ ]+) )?:([^!]+)![^ ]+ PRIVMSG #[^ ]+ :(.*)$/); if (!m) return;
-        const dn = (m[1] || '').match(/display-name=([^;]*)/); onChat('twitch', (dn && dn[1]) || m[2], m[3]);
+        const dn = (m[1] || '').match(/display-name=([^;]*)/), id = (m[1] || '').match(/(?:^|;)id=([^;]+)/); if (seenMsg(id && 'tw' + id[1])) return; onChat('twitch', (dn && dn[1]) || m[2], m[3]);
       });
       ws.onclose = () => { conn.twitch = 'closed'; hostUI(); };
     } catch (e) { conn.twitch = 'error'; }
@@ -1537,7 +1540,7 @@ if(document.body.className==='host'){
         const ev = (d.event || d.type || d.eventType || '').toString().toLowerCase(), data = d.data || d;
         if (!/chat|comment/.test(ev) && !data.comment) return;
         const u = data.user || data; const name = u.nickname || u.uniqueId || data.nickname || data.uniqueId; const text = data.comment || data.message || data.text;
-        if (name && text) onChat('tiktok', name, text);
+        if (name && text && !seenMsg(data.msgId && 'tt' + data.msgId)) onChat('tiktok', name, text);
       };
       ws.onclose = e => {
         if (ttWs !== ws) return;          // replaced by a newer connection

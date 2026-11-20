@@ -3565,12 +3565,15 @@ if (ZRS.q.has('nosim') || ZRS.live) ZR.cfg.chat = 'off';
 function zrFollow(name, plat){ zrChat(name, 'followed! 💛', plat); const c = ZR.cit.get((plat || 'x') + ':' + String(name).toLowerCase()); if (c){ zrPoints(c, 5); } toast(`💛 ${name} followed: +5`); zrStat('follows'); }
 function zrGift(name, coins, plat, gift){ zrChat(name, `sent ${gift || 'a gift'} 🌹`, plat); const c = ZR.cit.get((plat || 'x') + ':' + String(name).toLowerCase()); if (c){ zrPoints(c, Math.max(1, Math.round(coins || 1)) * 2); } toast(`🌹 ${name} sent ${gift || 'a gift'}: +${Math.max(1, Math.round(coins || 1)) * 2}`); zrStat('gifts'); }
 // ---------- chat sources: simulated (built in), Twitch (anonymous, read only), TikFinity (TikTok, local WebSocket) ----------
+// each chat message carries a unique id (Twitch tag id=, TikTok msgId): drop repeats, so a doubled connection never doubles chat
+const ZR_SEEN = new Set(), ZR_SEEN_Q = [];
+function zrSeen(id){ if (!id) return false; if (ZR_SEEN.has(id)) return true; ZR_SEEN.add(id); ZR_SEEN_Q.push(id); if (ZR_SEEN_Q.length > 500) ZR_SEEN.delete(ZR_SEEN_Q.shift()); return false; }
 function zrTwitch(ch){ ch = String(ch || '').replace(/^#/, '').toLowerCase().trim(); if (!ch) return; if (ZRS.srcs.tw) try { ZRS.srcs.tw.close(); } catch(e){}
   const ws = ZRS.srcs.tw = new WebSocket('wss://irc-ws.chat.twitch.tv:443'); ZRS.twStatus = 'connecting #' + ch; zrHostDraw();
   ws.onopen = () => { ws.send('CAP REQ :twitch.tv/tags'); ws.send('PASS SCHMOOPIIE'); ws.send('NICK justinfan' + Math.floor(rnd(10000, 99999))); ws.send('JOIN #' + ch); ZRS.twStatus = 'joining #' + ch + '…'; zrHostDraw(); };
   ws.onmessage = e => { for (const line of String(e.data).split('\r\n')){ if (!line) continue; if (line.startsWith('PING')){ ws.send('PONG :tmi.twitch.tv'); continue; }
       if (/ JOIN #/.test(line) && /^:justinfan/.test(line)){ ZRS.twStatus = '✅ connected & reading #' + ch; zrHostDraw(); toast('Twitch chat connected & reading: #' + ch); continue; }
-      const m = line.match(/display-name=([^;]*);.* PRIVMSG #\S+ :(.*)$/) || line.match(/^:(\w+)!\S+ PRIVMSG #\S+ :(.*)$/); if (m) zrChat(m[1] || 'twitch', m[2], 'tw'); } };
+      const m = line.match(/display-name=([^;]*);.* PRIVMSG #\S+ :(.*)$/) || line.match(/^:(\w+)!\S+ PRIVMSG #\S+ :(.*)$/), id = line.match(/^@(?:[^ ]*;)?id=([^; ]+)/); if (m && !zrSeen(id && 'tw' + id[1])) zrChat(m[1] || 'twitch', m[2], 'tw'); } };
   ws.onclose = () => { if (ZRS.srcs.tw === ws){ ZRS.twStatus = '❌ disconnected, press Connect'; zrHostDraw(); } }; }
 function zrTikfinity(){ if (ZRS.srcs.tf) try { ZRS.srcs.tf.close(); } catch(e){}
   let ws; try { ws = ZRS.srcs.tf = new WebSocket('ws://localhost:21213/'); } catch(e){ ZRS.tfStatus = 'failed'; zrHostDraw(); return; }
@@ -3590,6 +3593,7 @@ function zrTiktools(){ const u = String(ZRS.saved.ttUser || '').replace(/^@/, ''
   const ws = ZRS.srcs.tt = new WebSocket(`wss://api.tik.tools?uniqueId=${encodeURIComponent(u)}&apiKey=${encodeURIComponent(key)}`); ZRS.ttStatus = 'connecting to @' + u; zrHostDraw();
   ws.onopen = () => { ZRS.ttStatus = 'connected to @' + u; zrHostDraw(); toast('TikTok chat connected (@' + u + ')'); };
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch(err){ return; } const ev = m.event || m.type, d = m.data || {}, us = d.user || {}, nm = us.nickname || us.uniqueId || d.uniqueId || 'viewer';
+    if (zrSeen(d.msgId && 'tt' + d.msgId)) return;
     if (ev === 'chat') zrChat(nm, d.comment || '', 'tt');
     else if (ev === 'follow' || (ev === 'social' && /follow/i.test(d.displayType || ''))) zrFollow(nm, 'tt');
     else if (ev === 'gift'){ if (d.giftType === 1 && !d.repeatEnd) return; zrGift(nm, (d.diamondCount || 1) * (d.repeatCount || 1), 'tt', d.giftName); } };

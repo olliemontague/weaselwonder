@@ -129,4 +129,4 @@
 - ZombieRats factory: outpost box first and rebuilt as soon as one is used; then a fixed menu in random order, 3 barbed wire, 2 sandbags, 1 trap, 1 turret, until every item has twice its share; then it tops up whichever grid is emptiest.
 
 ## r25 · 2026-11-20
-- CrazyChess and ZombieRats on weaselwonder.com connect Twitch and TikTok (tik.tools) from the /streamer chat settings as soon as they open. If tik.tools closes the link (not live on TikTok yet, or key refused) they retry every 10 s and say why in the status line. CrazyChess no longer doubles Twitch messages when Connect chat is pressed again.
+- CrazyChess and ZombieRats on weaselwonder.com connect Twitch and TikTok (tik.tools) from the /streamer chat settings as soon as they open. If tik.tools closes the link (not live on TikTok yet, or key refused) they retry every 10 s and say why in the status line. Chat can no longer come in doubled: one Twitch and one TikTok link at a time, and both games drop any message whose id they have already shown (CrazyChess and ZombieRats).
