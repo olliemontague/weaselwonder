@@ -115,3 +115,8 @@
 
 ## r22.1 · 2026-11-20
 - /streamer and game pages: CrazyChess labelled v1.4.
+
+## r23 · 2026-11-20
+- ZombieRats: windows moved to the Twitch layout standard (chat 1456,176 440×560; camera 1456,760 440×248; how-to bottom left with the PLAY WITH ME bar). Host buttons hidden on stream by default (?noclean shows them).
+- ZombieRats: simulated chat never runs on weaselwonder.com; the settings show it as off.
+- ZombieRats: Twitch status reads "connected & reading #channel" once the channel join is confirmed, "disconnected" if it drops.
