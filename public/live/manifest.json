@@ -1,0 +1,10 @@
+{
+  "name": "Weaselwonder LIVE",
+  "short_name": "Weaselwonder",
+  "start_url": "/live/",
+  "scope": "/live/",
+  "display": "standalone",
+  "background_color": "#0f120d",
+  "theme_color": "#0f120d",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

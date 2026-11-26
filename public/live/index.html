@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f120d">
+<title>Weaselwonder LIVE</title>
+<link rel="manifest" href="/live/manifest.json">
+<link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<style>
+/* MVP 0 viewer page: watch the stream (low lag, straight from Backseat Studio) and play on one screen. */
+html,body{height:100%}
+body{display:flex;flex-direction:column;min-height:100svh;padding-bottom:env(safe-area-inset-bottom)}
+.bar{display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));border-bottom:1px solid rgba(255,255,255,.06)}
+.bar .sub{margin-left:auto;color:var(--mute);font-size:13px}
+.main{flex:1;display:flex;flex-direction:column;min-height:0}
+.screen{position:relative;width:100%;aspect-ratio:16/9;background:#000;flex:none}
+.screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+.screen .msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:16px;
+  background:linear-gradient(rgba(10,12,9,.72),rgba(10,12,9,.88)),url(/assets/art/stream-poster.jpg) center/cover}
+.screen .msg b{font-family:var(--head);font-size:clamp(22px,5vw,34px);color:var(--gold2);letter-spacing:.02em}
+.screen .msg span{color:var(--mute);max-width:420px}
+.vtools{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;align-items:center;pointer-events:none}
+.vtools button{pointer-events:auto;border:0;border-radius:10px;min-height:40px;padding:0 14px;font:800 14px Inter,sans-serif;background:rgba(0,0,0,.65);color:#fff;cursor:pointer}
+.vtools .lag{margin-left:auto;background:rgba(0,0,0,.55);border-radius:8px;padding:4px 8px;font-size:12px;color:#ddd}
+.play{flex:1;display:flex;flex-direction:column;min-height:0;border-top:1px solid rgba(255,255,255,.06)}
+.playhead{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.playhead .t{font-weight:800}.playhead .s{font-size:13px;color:var(--mute)}
+.playhead .btn{margin-left:auto}
+.game{flex:1;min-height:420px;border:0;width:100%;background:#0b0d09;display:block}
+.idle{padding:0 16px 20px;color:var(--mute);font-size:14px}
+@media(min-width:960px){
+  .main{flex-direction:row}
+  .screen{flex:1;aspect-ratio:auto;height:calc(100svh - 61px)}
+  .play{flex:none;width:420px;border-top:0;border-left:1px solid rgba(255,255,255,.06)}
+}
+</style>
+</head>
+<body>
+<div class="bar">
+  <a class="brand" href="/">WEASELWONDER</a>
+  <span class="pill" id="pill"><i></i><span id="pillText">Offline</span></span>
+  <span class="sub" id="sub"></span>
+</div>
+<div class="main">
+  <div class="screen">
+    <video id="v" playsinline autoplay muted></video>
+    <div class="msg" id="msg"><b id="msgT">Weasel is offline</b><span id="msgS">This page goes live by itself when the stream starts. Keep it open.</span></div>
+    <div class="vtools" id="vtools" hidden><button type="button" id="sound">Tap for sound</button><span class="lag">Low-lag stream</span></div>
+  </div>
+  <section class="play" aria-label="Play along">
+    <div class="playhead">
+      <div><div class="t" id="gTitle">Play along</div><div class="s" id="gSub">Join the game from here when weasel is live.</div></div>
+      <button type="button" class="btn" id="join" hidden>Join the game</button>
+    </div>
+    <iframe class="game" id="game" title="Play the game" hidden allow="autoplay; fullscreen"></iframe>
+    <p class="idle" id="idle">You watch here and play underneath, no other app needed.</p>
+  </section>
+</div>
+<script>
+{
+  const $ = id => document.getElementById(id);
+  const v = $('v');
+  // Where each live game's player view lives.
+  const PLAY = { 'corpse-crafter': { title: 'Corpse Crafter', url: '/corpsecrafter/play', sub: 'Get a soldier in weasel\'s squad.' },
+                 'crazychess': { title: 'CrazyChess', url: '/crazychess/play', sub: 'Crew a piece. Everyone moves at once.' } };
+  let whep = '', pc = null, playing = false, live = null, retry = null;
+
+  function setView() {
+    const on = playing;
+    $('pill').classList.toggle('on', on);
+    $('pillText').textContent = on ? 'Live' : (live && live.live ? 'Starting' : 'Offline');
+    $('msg').hidden = on;
+    $('vtools').hidden = !on;
+    if (!on) {
+      $('msgT').textContent = live && live.live ? 'Connecting to the stream' : 'Weasel is offline';
+      $('msgS').textContent = live && live.live ? 'One moment...' : 'This page goes live by itself when the stream starts. Keep it open.';
+    }
+    const g = live && live.live && PLAY[live.game];
+    $('gTitle').textContent = g ? g.title : 'Play along';
+    $('gSub').textContent = g ? g.sub : 'Join the game from here when weasel is live.';
+    $('join').hidden = !g || !$('game').hidden;
+    $('idle').hidden = !!g;
+  }
+
+  // Watch: WebRTC playback (WHEP) from Cloudflare Stream, under a second behind.
+  async function connect() {
+    clearTimeout(retry);
+    if (!whep) return;
+    try {
+      pc = new RTCPeerConnection({ bundlePolicy: 'max-bundle', iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] });
+      pc.addTransceiver('video', { direction: 'recvonly' });
+      pc.addTransceiver('audio', { direction: 'recvonly' });
+      const ms = new MediaStream();
+      pc.ontrack = e => { ms.addTrack(e.track); v.srcObject = ms; };
+      pc.onconnectionstatechange = () => {
+        const s = pc && pc.connectionState;
+        if (s === 'connected') { playing = true; v.play().catch(() => {}); setView(); }
+        if (s === 'failed' || s === 'disconnected' || s === 'closed') { stop(); retry = setTimeout(connect, 4000); }
+      };
+      await pc.setLocalDescription(await pc.createOffer());
+      await new Promise(r => { if (pc.iceGatheringState === 'complete') return r(); const t = setTimeout(r, 1500);
+        pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); r(); } }); });
+      const res = await fetch(whep, { method: 'POST', headers: { 'content-type': 'application/sdp' }, body: pc.localDescription.sdp });
+      if (!res.ok) throw new Error('not live (' + res.status + ')');
+      await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() });
+    } catch (e) {
+      stop();
+      retry = setTimeout(connect, 6000); // try again until the streamer goes live
+    }
+  }
+  function stop() { playing = false; if (pc) { try { pc.close(); } catch (_) {} pc = null; } v.srcObject = null; setView(); }
+
+  $('sound').onclick = () => { v.muted = !v.muted; $('sound').textContent = v.muted ? 'Tap for sound' : 'Sound on'; v.play().catch(() => {}); };
+  $('join').onclick = () => {
+    const g = live && PLAY[live.game]; if (!g) return;
+    const f = $('game'); f.src = g.url; f.hidden = false; setView();
+    if (innerWidth < 960) f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  async function poll() {
+    try { live = await (await fetch('/api/live', { cache: 'no-store' })).json(); } catch (_) {}
+    $('sub').textContent = live && live.live && PLAY[live.game] ? PLAY[live.game].title : '';
+    setView();
+  }
+
+  (async () => {
+    try { whep = ((await (await fetch('/live/stream.json', { cache: 'no-store' })).json()).whep || '').trim(); } catch (_) {}
+    await poll();
+    setInterval(poll, 15000);
+    if (whep) connect(); else { $('msgS').textContent = 'The live player is being set up.'; }
+  })();
+}
+</script>
+</body>
+</html>
