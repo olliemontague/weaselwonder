@@ -138,7 +138,7 @@
 - Built on r24.1 (pushed from another session during the stream): its team switching, chat auto-connect/reconnect and covered-window timer are kept in the CrazyChess source; this adds the message-id de-duplication and the reason in the TikTok status line, and fixes the CrazyChess control panel being stuck on "Connecting to the game window" in r24.1 (it was sent the live chat sockets, which cannot be copied between windows).
 
 
-## r26 · 2026-11-26 (branch mvp0-live, not on main yet)
+## r26 · 2026-11-26
 - New /live page (Backseat MVP 0): phone-first viewer page. Low-lag WebRTC video (WHEP from Cloudflare Stream) on top, the live game's player view underneath ("Join the game"), installable from the browser (manifest).
 - The video address lives in public/live/stream.json. Live status still comes from /api/live (set by Backseat Studio's Go live).
 - No worker changes.
