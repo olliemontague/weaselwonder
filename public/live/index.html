@@ -67,7 +67,8 @@ body{display:flex;flex-direction:column;min-height:100svh;padding-bottom:env(saf
   const v = $('v');
   // Where each live game's player view lives.
   const PLAY = { 'corpse-crafter': { title: 'Corpse Crafter', url: '/corpsecrafter/play', sub: 'Get a soldier in weasel\'s squad.' },
-                 'crazychess': { title: 'CrazyChess', url: '/crazychess/play', sub: 'Crew a piece. Everyone moves at once.' } };
+                 'crazychess': { title: 'CrazyChess', url: '/crazychess/play', sub: 'Crew a piece. Everyone moves at once.' },
+                 'backseat-pitch': { title: 'The Pitch Room', url: '/pitch/', sub: 'Type to steer the founder, then join and play.' } };
   let whep = '', pc = null, playing = false, live = null, retry = null;
 
   function setView() {
