@@ -1,5 +1,9 @@
 # Changelog
 
+
+## r27 (draft, branch cc-backseat-mode, not merged)
+- Corpse Crafter game-only mode for Backseat Studio: `/assets/cc-backseat.js` (from the corpse-crafter repo, build 0001-gameonly) loads first in the Corpse Crafter page head. It does nothing in a normal browser; inside Backseat Studio, or with `?backseat=1`, the host view shows just the game, landscape, with the HUD in the portrait-safe centre, and Studio draws the overlays.
+- Merge off-air only (restarts the game room).
 ## r7 · 2026-11-17
 - New Zombuild home page. Offline: "Play the latest tutorial". Live: join box. Discord, TikTok and Twitch links.
 - Tutorial at /tutorial/: stages 1 to 13 (collecting to winning the game) plus stage 14, Free play (Easy, Medium, Hard).
