@@ -1,0 +1,36 @@
+# One-off: copy the live Corpse Crafter game (kept in Cloudflare KV since 15 Nov) into this repo,
+# so its exact source is version-controlled and nobody has to download it from the site.
+name: Archive Corpse Crafter source from KV
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cc-archive-source.yml']
+permissions:
+  contents: write
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for the site deploy, then download the KV original
+        run: |
+          mkdir -p public/corpsecrafter/builds
+          code=0; size=0
+          for i in $(seq 1 20); do
+            sleep 20
+            code=$(curl -s -o /tmp/cc.html -w '%{http_code}' https://weaselwonder.com/corpsecrafter/source.html || true)
+            size=$(stat -c %s /tmp/cc.html 2>/dev/null || echo 0)
+            echo "try $i: $code, $size bytes"
+            if [ "$code" = "200" ] && [ "$size" -gt 50000 ] && grep -q 'ww-release' /tmp/cc.html; then break; fi
+          done
+          [ "$code" = "200" ] && [ "$size" -gt 50000 ] || { echo "download failed"; exit 1; }
+          grep -o 'name="ww-release" content="[^"]*"' /tmp/cc.html | head -1
+          cp /tmp/cc.html public/corpsecrafter/builds/r6.html
+          sha256sum public/corpsecrafter/builds/r6.html > public/corpsecrafter/builds/r6.html.sha256
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add public/corpsecrafter/builds
+          git commit -m "Archive Corpse Crafter r6 (KV original) into the repo" || echo "nothing to commit"
+          git push
