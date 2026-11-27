@@ -1,6 +1,10 @@
 # Changelog
 
 
+
+## r28 (2026-11-27)
+- Corpse Crafter is now served from this repo: `public/corpsecrafter/builds/<build>.html`, chosen by `public/corpsecrafter/builds/current.json` (stable: r6). Same bytes as before (r6 archived from KV by the one-off workflow, sha256 in r6.html.sha256). The old KV copy is only a fallback.
+- `/corpsecrafter/source.html` shows the KV original (kept for reference).
 ## r27 (2026-11-27)
 - Corpse Crafter game-only mode for Backseat Studio: `/assets/cc-backseat.js` (from the corpse-crafter repo, build 0001-gameonly) loads first in the Corpse Crafter page head. It does nothing in a normal browser; inside Backseat Studio, or with `?backseat=1`, the host view shows just the game, landscape, with the HUD in the portrait-safe centre, and Studio draws the overlays.
 - Deployed 27 Nov off-air (restarts the game room).
