@@ -3,16 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f120d">
-<title>Weaselwonder LIVE</title>
+<meta name="theme-color" content="#0E0E1C">
+<title>weaselwonder live, on Backseat</title>
 <link rel="manifest" href="/live/manifest.json">
 <link rel="icon" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <style>
 /* MVP 0 viewer page: watch the stream (low lag, straight from Backseat Studio) and play on one screen. */
 [hidden]{display:none!important}
+/* Backseat brand (pitch deck A) for this page only */
+:root{--bg:#0E0E1C;--bg2:#14142B;--ink:#F6F4EF;--mute:#B9B7CC;--dim:#77759A;--gold:#F2C14E;--gold2:#F2C14E;--line:#34345C;--card:#1F1F3D;--head:'Space Grotesk',Inter,sans-serif;--or:#FF6B35;--or2:#FF8A5C}
+html,body{background:var(--bg);color:var(--ink)}
+.brand{font-family:var(--head);font-weight:700;font-size:20px;letter-spacing:0;color:var(--ink)}
+.brand small{display:block;font:600 11px/1 Inter,sans-serif;color:var(--mute);letter-spacing:.04em;margin-top:3px}
+.brand small b{color:var(--or);font-family:var(--head)}
+.pill{background:var(--bg2);border:1px solid var(--line);color:var(--ink)}
+.pill.on{background:rgba(255,107,53,.16);border-color:rgba(255,107,53,.6)}
+.pill.on i{background:var(--or)}
+.btn{background:var(--or);color:#14142B;box-shadow:0 4px 0 #a8401a;font-family:var(--head);font-weight:700}
+.btn:active{box-shadow:0 1px 0 #a8401a}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.off{padding:4px 16px 28px;display:flex;flex-direction:column;gap:18px}
+.off h3{font:700 16px/1.2 var(--head);margin:0}
+.steps{display:grid;gap:10px;margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;counter-increment:s}
+.steps li::before{content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;background:var(--or);color:#14142B;font:700 14px/26px var(--head);text-align:center}
+.steps b{display:block}.steps span{color:var(--mute);font-size:14px}
+.follow{display:flex;gap:10px;flex-wrap:wrap}
+.follow .btn{padding:11px 16px;font-size:15px}
 html,body{height:100%}
 body{display:flex;flex-direction:column;min-height:100svh;padding-bottom:env(safe-area-inset-bottom)}
 .bar{display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));border-bottom:1px solid rgba(255,255,255,.06)}
@@ -21,17 +41,18 @@ body{display:flex;flex-direction:column;min-height:100svh;padding-bottom:env(saf
 .screen{position:relative;width:100%;aspect-ratio:16/9;background:#000;flex:none}
 .screen video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
 .screen .msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:16px;
-  background:linear-gradient(rgba(10,12,9,.72),rgba(10,12,9,.88)),url(/assets/art/stream-poster.jpg) center/cover}
-.screen .msg b{font-family:var(--head);font-size:clamp(22px,5vw,34px);color:var(--gold2);letter-spacing:.02em}
+  background:radial-gradient(120% 90% at 50% 0%,#2A2A4F 0%,#14142B 55%,#0E0E1C 100%)}
+.screen .msg .mark{font:700 15px/1 var(--head);color:var(--or);letter-spacing:.02em;margin-bottom:6px}
+.screen .msg b{font-family:var(--head);font-weight:700;font-size:clamp(22px,5vw,34px);color:var(--ink);letter-spacing:0}
 .screen .msg span{color:var(--mute);max-width:420px}
 .vtools{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;align-items:center;pointer-events:none}
 .vtools button{pointer-events:auto;border:0;border-radius:10px;min-height:40px;padding:0 14px;font:800 14px Inter,sans-serif;background:rgba(0,0,0,.65);color:#fff;cursor:pointer}
 .vtools .lag{margin-left:auto;background:rgba(0,0,0,.55);border-radius:8px;padding:4px 8px;font-size:12px;color:#ddd}
-.play{flex:1;display:flex;flex-direction:column;min-height:0;border-top:1px solid rgba(255,255,255,.06)}
+.play{flex:1;display:flex;flex-direction:column;min-height:0;border-top:1px solid var(--line)}
 .playhead{display:flex;align-items:center;gap:12px;padding:12px 16px}
 .playhead .t{font-weight:800}.playhead .s{font-size:13px;color:var(--mute)}
 .playhead .btn{margin-left:auto}
-.game{flex:1;min-height:420px;border:0;width:100%;background:#0b0d09;display:block}
+.game{flex:1;min-height:420px;border:0;width:100%;background:#0E0E1C;display:block}
 .idle{padding:0 16px 20px;color:var(--mute);font-size:14px}
 @media(min-width:960px){
   .main{flex-direction:row}
@@ -42,14 +63,14 @@ body{display:flex;flex-direction:column;min-height:100svh;padding-bottom:env(saf
 </head>
 <body>
 <div class="bar">
-  <a class="brand" href="/">WEASELWONDER</a>
+  <a class="brand" href="/">weaselwonder<small>live on <b>backseat</b></small></a>
   <span class="pill" id="pill"><i></i><span id="pillText">Offline</span></span>
   <span class="sub" id="sub"></span>
 </div>
 <div class="main">
   <div class="screen">
     <video id="v" playsinline autoplay muted></video>
-    <div class="msg" id="msg"><b id="msgT">Weasel is offline</b><span id="msgS">This page goes live by itself when the stream starts. Keep it open.</span></div>
+    <div class="msg" id="msg"><span class="mark">backseat</span><b id="msgT">weaselwonder is offline</b><span id="msgS">This page goes live by itself when the stream starts. Keep it open.</span></div>
     <div class="vtools" id="vtools" hidden><button type="button" id="sound">Tap for sound</button><span class="lag">Low-lag stream</span></div>
   </div>
   <section class="play" aria-label="Play along">
@@ -59,6 +80,16 @@ body{display:flex;flex-direction:column;min-height:100svh;padding-bottom:env(saf
     </div>
     <iframe class="game" id="game" title="Play the game" hidden allow="autoplay; fullscreen"></iframe>
     <p class="idle" id="idle">You watch here and play underneath, no other app needed.</p>
+    <div class="off" id="off">
+      <h3>How it works</h3>
+      <ol class="steps">
+        <li><div><b>Watch</b><span>The stream plays right here, under a second behind.</span></div></li>
+        <li><div><b>Type and steer</b><span>Your messages move things in the game, live.</span></div></li>
+        <li><div><b>Jump in</b><span>Tap Join and play on this screen. No app, no download.</span></div></li>
+      </ol>
+      <h3>Get told when it starts</h3>
+      <div class="follow"><a class="btn ghost" href="https://www.tiktok.com/@weaselwonder" target="_blank" rel="noopener">Follow on TikTok</a><a class="btn ghost" href="https://www.twitch.tv/weaselwonder" target="_blank" rel="noopener">Follow on Twitch</a></div>
+    </div>
   </section>
 </div>
 <script>
@@ -78,14 +109,15 @@ body{display:flex;flex-direction:column;min-height:100svh;padding-bottom:env(saf
     $('msg').hidden = on;
     $('vtools').hidden = !on;
     if (!on) {
-      $('msgT').textContent = live && live.live ? 'Connecting to the stream' : 'Weasel is offline';
+      $('msgT').textContent = live && live.live ? 'Connecting to the stream' : 'weaselwonder is offline';
       $('msgS').textContent = live && live.live ? 'One moment...' : 'This page goes live by itself when the stream starts. Keep it open.';
     }
     const g = live && live.live && PLAY[live.game];
     $('gTitle').textContent = g ? g.title : 'Play along';
-    $('gSub').textContent = g ? g.sub : 'Join the game from here when weasel is live.';
+    $('gSub').textContent = g ? g.sub : 'Join the game from here when weaselwonder is live.';
+    $('off').hidden = on || !!(live && live.live);
     $('join').hidden = !g || !$('game').hidden;
-    $('idle').hidden = !!g;
+    $('idle').hidden = !!g || !$('off').hidden;
   }
 
   // Watch: WebRTC playback (WHEP) from Cloudflare Stream, under a second behind.
