@@ -33,7 +33,8 @@
   function mockSet(v) { try { sessionStorage.setItem("ww_live", v); } catch (e) { window.__wwLive = v; } }
   async function readLive() {
     if (PROTO) { const s = mockGet(); return { live: !!byslug(s), game: byslug(s) ? s : null }; }
-    try { const r = await fetch("/api/live", { cache: "no-store" }); if (r.ok) return await r.json(); } catch (e) {}
+    // Archived 28 Nov 2026: going live now happens on subin.live/streamers/weaselwonder.
+    // The SubIn "I'm live" modal (assets/subin-live.js) replaces the on-site live bar and live states.
     return { live: false, game: null };
   }
 
